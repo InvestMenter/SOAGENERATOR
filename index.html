@@ -449,9 +449,9 @@
         const { useState, useEffect } = React;
 
         function SOAGenerator() {
-            const [propertyType, setPropertyType] = useState('offplan'); // offplan, ready-cash, ready-mortgage
-            const [buyerType, setBuyerType] = useState('cash'); // cash, mortgage
-            const [sellerType, setSellerType] = useState('cash'); // cash, mortgage
+            const [propertyType, setPropertyType] = useState('offplan');
+            const [buyerType, setBuyerType] = useState('cash');
+            const [sellerType, setSellerType] = useState('cash');
 
             const [formData, setFormData] = useState({
                 sellersName: '',
@@ -472,7 +472,7 @@
                     purchasePrice: '', 
                     installmentPaid: '',
                     buyerPaidToDeveloper: '',
-                    folAmount: '' // For mortgage registration calculation
+                    folAmount: ''
                 }
             ]);
 
@@ -482,16 +482,13 @@
             const [generated, setGenerated] = useState(false);
             const [activeTab, setActiveTab] = useState('buyer');
 
-            // Automatically add Sales Progression Fee and Handling Admin Fee
+            // MODIFIED: Only auto-add Sales Progression Fee (Handling Admin Fee is now optional)
             useEffect(() => {
                 setBuyerExpenses(prev => {
-                    // Remove old auto-added fees to update them
                     let filtered = prev.filter(exp => 
-                        exp.id !== 'sales-progression-auto' && 
-                        exp.id !== 'handling-admin-auto'
+                        exp.id !== 'sales-progression-auto'
                     );
                     
-                    // Add Sales Progression Fee (editable)
                     const salesProgressionAmount = getSalesProgressionFee();
                     filtered.push({
                         id: 'sales-progression-auto',
@@ -502,24 +499,12 @@
                         payee: "Next Level Consulting - FZCO"
                     });
                     
-                    // Add Handling Admin Fee (fixed)
-                    filtered.push({
-                        id: 'handling-admin-auto',
-                        expenseType: 'handling-admin',
-                        description: 'Handling Admin Fee incl. 5% VAT',
-                        amount: '4198.95',
-                        mode: "Manager's Cheque",
-                        payee: "Next Level Consulting - FZCO"
-                    });
-                    
                     return filtered;
                 });
-            }, [buyerType, sellerType]); // Update when buyer/seller type changes
+            }, [buyerType, sellerType]);
 
-            // Automatically add DLD Mortgage Registration Fee for Ready/Mortgage
             useEffect(() => {
                 if (propertyType === 'ready-mortgage') {
-                    // Check if it's not already added
                     setBuyerExpenses(prev => {
                         const hasMortgageFee = prev.some(exp => exp.id === 'mortgage-registration-auto');
                         if (!hasMortgageFee) {
@@ -535,12 +520,10 @@
                         return prev;
                     });
                 } else {
-                    // Remove mortgage registration fee if property type changes
                     setBuyerExpenses(prev => prev.filter(exp => exp.id !== 'mortgage-registration-auto'));
                 }
-            }, [propertyType]); // Only depend on propertyType
+            }, [propertyType]);
 
-            // Payment modes
             const paymentModes = [
                 "Manager's Cheque",
                 "Bank Transfer",
@@ -549,7 +532,6 @@
                 "Cheque"
             ];
 
-            // Payee options
             const payeeOptions = [
                 "Investmenter Real Estate LLC",
                 "Next Level Consulting - FZCO",
@@ -558,7 +540,6 @@
                 "Other"
             ];
 
-            // Calculate Sales Progression Fee based on buyer/seller types
             const getSalesProgressionFee = () => {
                 const baseAmount = {
                     'cash-cash': 3000,
@@ -567,31 +548,26 @@
                     'mortgage-mortgage': 6000
                 }[`${buyerType}-${sellerType}`] || 3000;
                 
-                return baseAmount * 1.05; // Add 5% VAT
+                return baseAmount * 1.05;
             };
 
-            // Calculate POA Fee
             const getPOAFee = (hasEmiratesID) => {
                 const baseAmount = hasEmiratesID ? 3000 : 4000;
-                return baseAmount * 1.05; // Add 5% VAT
+                return baseAmount * 1.05;
             };
 
-            // Get DLD Admin Fee based on property type
             const getDLDAdminFee = () => {
                 return propertyType === 'offplan' ? 40 : 580;
             };
 
-            // Get DLD Trustee Fee based on property type
             const getDLDTrusteeFee = () => {
                 return propertyType === 'offplan' ? 5250 : 4200;
             };
 
-            // Calculate Handling Admin Fee
             const getHandlingAdminFee = () => {
                 return 4198.95;
             };
 
-            // Calculate Mortgage Registration Fee (only for ready-mortgage)
             const getMortgageRegistrationFee = (folAmount) => {
                 if (propertyType !== 'ready-mortgage' || !folAmount) return 0;
                 return (parseFloat(folAmount) * 0.0025) + 290;
@@ -624,7 +600,7 @@
             const addBuyerExpense = () => {
                 setBuyerExpenses([...buyerExpenses, {
                     id: Date.now(),
-                    expenseType: 'poa-no-eid', // default selection
+                    expenseType: 'poa-no-eid',
                     description: 'POA Fee (no Emirates ID) incl. 5% VAT',
                     amount: '4200',
                     mode: "Manager's Cheque",
@@ -633,8 +609,7 @@
             };
 
             const removeBuyerExpense = (id) => {
-                // Prevent removal of auto-added expenses
-                if (id === 'sales-progression-auto' || id === 'handling-admin-auto' || id === 'mortgage-registration-auto') {
+                if (id === 'sales-progression-auto' || id === 'mortgage-registration-auto') {
                     return;
                 }
                 setBuyerExpenses(buyerExpenses.filter(exp => exp.id !== id));
@@ -644,7 +619,6 @@
                 setBuyerExpenses(buyerExpenses.map(exp => {
                     if (exp.id === id) {
                         if (field === 'expenseType') {
-                            // Auto-fill based on expense type
                             switch(value) {
                                 case 'poa-no-eid':
                                     return {
@@ -660,6 +634,14 @@
                                         expenseType: value,
                                         description: 'POA Fee (with Emirates ID) incl. 5% VAT',
                                         amount: '3150',
+                                        payee: 'Next Level Consulting - FZCO'
+                                    };
+                                case 'handling-admin':
+                                    return {
+                                        ...exp,
+                                        expenseType: value,
+                                        description: 'Handling Admin Fee incl. 5% VAT',
+                                        amount: '4198.95',
                                         payee: 'Next Level Consulting - FZCO'
                                     };
                                 case 'managers-cheque-fee':
@@ -690,7 +672,7 @@
             const addSellerExpense = () => {
                 setSellerExpenses([...sellerExpenses, {
                     id: Date.now(),
-                    expenseType: 'poa-no-eid', // default selection
+                    expenseType: 'poa-no-eid',
                     description: 'POA Fee (no Emirates ID) incl. 5% VAT',
                     amount: '4200',
                     mode: "Manager's Cheque",
@@ -706,7 +688,6 @@
                 setSellerExpenses(sellerExpenses.map(exp => {
                     if (exp.id === id) {
                         if (field === 'expenseType') {
-                            // Auto-fill based on expense type
                             switch(value) {
                                 case 'poa-no-eid':
                                     return {
@@ -722,6 +703,14 @@
                                         expenseType: value,
                                         description: 'POA Fee (with Emirates ID) incl. 5% VAT',
                                         amount: '3150',
+                                        payee: 'Next Level Consulting - FZCO'
+                                    };
+                                case 'handling-admin':
+                                    return {
+                                        ...exp,
+                                        expenseType: value,
+                                        description: 'Handling Admin Fee incl. 5% VAT',
+                                        amount: '4198.95',
                                         payee: 'Next Level Consulting - FZCO'
                                     };
                                 case 'managers-cheque-fee':
@@ -784,7 +773,7 @@
             const getBrokerFee = () => {
                 const totalSellingPrice = getTotalSellingPrice();
                 const percentage = parseFloat(formData.brokerPercentage) || 2;
-                return (totalSellingPrice * (percentage / 100)) * 1.05; // Add 5% VAT
+                return (totalSellingPrice * (percentage / 100)) * 1.05;
             };
 
             const getDLDFee = () => {
@@ -795,29 +784,16 @@
 
             const calculateBuyerTotal = () => {
                 let total = 0;
-
-                // Net to Seller
                 total += getNetToSeller();
-
-                // Outstanding balance paid by buyer to developer
                 total += getTotalBuyerPaidToDeveloper();
-
-                // DLD Fee
                 total += getDLDFee();
-
-                // DLD Trustee Fee
                 total += getDLDTrusteeFee() * units.length;
-
-                // Broker's Agency Fee
                 total += getBrokerFee();
-
-                // Custom expenses - only add if amount is a valid number
                 buyerExpenses.forEach(exp => {
                     if (exp.amount && !isNaN(parseFloat(exp.amount))) {
                         total += parseFloat(exp.amount);
                     }
                 });
-
                 return total;
             };
 
@@ -826,20 +802,13 @@
                 const totalBuyerPaidDeveloper = getTotalBuyerPaidToDeveloper();
                 const totalOutstanding = getTotalOutstandingBalance();
                 let proceeds = netToSeller;
-
-                // Deduct Outstanding Balance
                 proceeds -= (totalBuyerPaidDeveloper || totalOutstanding);
-
-                // Broker's Agency Fee
                 proceeds -= getBrokerFee();
-
-                // Custom expenses - only deduct if amount is a valid number
                 sellerExpenses.forEach(exp => {
                     if (exp.amount && !isNaN(parseFloat(exp.amount))) {
                         proceeds -= parseFloat(exp.amount);
                     }
                 });
-
                 return proceeds;
             };
 
@@ -1272,15 +1241,25 @@
                                 </div>
                             </div>
 
-                            <div className="form-group">
-                                <label>Broker Percentage (%)</label>
-                                <input 
-                                    type="number" 
-                                    step="0.1"
-                                    value={formData.brokerPercentage}
-                                    onChange={(e) => setFormData({...formData, brokerPercentage: e.target.value})}
-                                    style={{width: '200px'}}
-                                />
+                            <div className="row">
+                                <div className="form-group">
+                                    <label>Broker Percentage (%)</label>
+                                    <input 
+                                        type="number" 
+                                        step="0.1"
+                                        value={formData.brokerPercentage}
+                                        onChange={(e) => setFormData({...formData, brokerPercentage: e.target.value})}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Prepared By</label>
+                                    <input 
+                                        type="text" 
+                                        value={formData.preparedBy}
+                                        onChange={(e) => setFormData({...formData, preparedBy: e.target.value})}
+                                        placeholder="Enter preparer name"
+                                    />
+                                </div>
                             </div>
 
                             <div className="section-header">Property Units & Pricing</div>
@@ -1426,10 +1405,9 @@
                                         <td>Investmenter Real Estate LLC</td>
                                         <td style={{textAlign: 'center'}}>-</td>
                                     </tr>
-                                    {/* Auto-added expenses */}
-                                    {buyerExpenses.filter(exp => ['sales-progression-auto', 'handling-admin-auto', 'mortgage-registration-auto'].includes(exp.id)).map(exp => (
+                                    {buyerExpenses.filter(exp => ['sales-progression-auto', 'mortgage-registration-auto'].includes(exp.id)).map(exp => (
                                         <tr key={exp.id} style={{
-                                            background: (exp.id === 'sales-progression-auto' || exp.id === 'handling-admin-auto') ? '#fff9e6' : '#ffe6e6'
+                                            background: exp.id === 'sales-progression-auto' ? '#fff9e6' : '#ffe6e6'
                                         }}>
                                             <td>
                                                 <span style={{fontWeight: '500', color: '#666'}}>{exp.description}</span>
@@ -1441,9 +1419,9 @@
                                                     value={exp.amount}
                                                     onChange={(e) => updateBuyerExpense(exp.id, 'amount', e.target.value)}
                                                     placeholder="0.00"
-                                                    disabled={exp.id === 'mortgage-registration-auto' || exp.id === 'handling-admin-auto'}
+                                                    disabled={exp.id === 'mortgage-registration-auto'}
                                                     style={{
-                                                        background: (exp.id === 'mortgage-registration-auto' || exp.id === 'handling-admin-auto') ? '#f5f5f5' : 'white',
+                                                        background: exp.id === 'mortgage-registration-auto' ? '#f5f5f5' : 'white',
                                                         textAlign: 'right'
                                                     }}
                                                 />
@@ -1452,7 +1430,7 @@
                                                 <select 
                                                     value={exp.mode}
                                                     onChange={(e) => updateBuyerExpense(exp.id, 'mode', e.target.value)}
-                                                    disabled={exp.id === 'mortgage-registration-auto' || exp.id === 'sales-progression-auto' || exp.id === 'handling-admin-auto'}
+                                                    disabled={exp.id === 'mortgage-registration-auto' || exp.id === 'sales-progression-auto'}
                                                 >
                                                     {paymentModes.map(mode => (
                                                         <option key={mode} value={mode}>{mode}</option>
@@ -1463,7 +1441,7 @@
                                                 <select 
                                                     value={exp.payee}
                                                     onChange={(e) => updateBuyerExpense(exp.id, 'payee', e.target.value)}
-                                                    disabled={exp.id === 'mortgage-registration-auto' || exp.id === 'sales-progression-auto' || exp.id === 'handling-admin-auto'}
+                                                    disabled={exp.id === 'mortgage-registration-auto' || exp.id === 'sales-progression-auto'}
                                                 >
                                                     {payeeOptions.map(option => (
                                                         <option key={option} value={option}>{option}</option>
@@ -1475,8 +1453,7 @@
                                             </td>
                                         </tr>
                                     ))}
-                                    {/* Custom expenses */}
-                                    {buyerExpenses.filter(exp => !['sales-progression-auto', 'handling-admin-auto', 'mortgage-registration-auto'].includes(exp.id)).map(exp => (
+                                    {buyerExpenses.filter(exp => !['sales-progression-auto', 'mortgage-registration-auto'].includes(exp.id)).map(exp => (
                                         <tr key={exp.id}>
                                             <td>
                                                 <select 
@@ -1486,6 +1463,7 @@
                                                 >
                                                     <option value="poa-no-eid">POA Fee (no Emirates ID) incl. 5% VAT</option>
                                                     <option value="poa-with-eid">POA Fee (with Emirates ID) incl. 5% VAT</option>
+                                                    <option value="handling-admin">Handling Admin Fee incl. 5% VAT</option>
                                                     <option value="managers-cheque-fee">Manager's Cheque Fee (No Escrow Service) (10% Security Deposit)</option>
                                                     <option value="other">Other Cost</option>
                                                 </select>
@@ -1557,13 +1535,12 @@
                                     <li><strong>Auto-added expenses (highlighted in yellow):</strong>
                                         <ul style={{marginLeft: '15px', marginTop: '3px'}}>
                                             <li>Sales Progression Fee: Amount varies by buyer/seller type (editable)</li>
-                                            <li>Handling Admin Fee: AED 4,198.95 (fixed)</li>
                                             {propertyType === 'ready-mortgage' && (
                                                 <li>DLD Mortgage Registration Fee: TO BE CONFIRMED (for Ready/Mortgage only)</li>
                                             )}
                                         </ul>
                                     </li>
-                                    <li>POA Fee and Manager's Cheque Fee amounts are pre-filled when you select them</li>
+                                    <li>POA Fee, Handling Admin Fee, and Manager's Cheque Fee amounts are pre-filled when you select them</li>
                                     <li>Select "Other Cost" to add custom expenses</li>
                                 </ul>
                             </div>
@@ -1628,6 +1605,7 @@
                                                 >
                                                     <option value="poa-no-eid">POA Fee (no Emirates ID) incl. 5% VAT</option>
                                                     <option value="poa-with-eid">POA Fee (with Emirates ID) incl. 5% VAT</option>
+                                                    <option value="handling-admin">Handling Admin Fee incl. 5% VAT</option>
                                                     <option value="managers-cheque-fee">Manager's Cheque Fee (No Escrow Service) (10% Security Deposit)</option>
                                                     <option value="other">Other Cost</option>
                                                 </select>
@@ -1696,7 +1674,7 @@
                             <div className="info-box" style={{marginTop: '15px'}}>
                                 <strong>💡 Quick Reference:</strong>
                                 <ul style={{marginLeft: '20px', marginTop: '5px', fontSize: '12px'}}>
-                                    <li>POA Fee and Manager's Cheque Fee amounts are pre-filled when you select them</li>
+                                    <li>POA Fee, Handling Admin Fee, and Manager's Cheque Fee amounts are pre-filled when you select them</li>
                                     <li>Select "Other Cost" to add custom expenses</li>
                                 </ul>
                             </div>
