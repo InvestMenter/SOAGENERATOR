@@ -482,7 +482,7 @@
             const [generated, setGenerated] = useState(false);
             const [activeTab, setActiveTab] = useState('buyer');
 
-            // MODIFIED: Only auto-add Sales Progression Fee (Handling Admin Fee is now optional)
+            // Auto-add Sales Progression Fee
             useEffect(() => {
                 setBuyerExpenses(prev => {
                     let filtered = prev.filter(exp => 
@@ -503,26 +503,40 @@
                 });
             }, [buyerType, sellerType]);
 
+            // MODIFIED: Update mortgage registration fee based on FOL amount
             useEffect(() => {
                 if (propertyType === 'ready-mortgage') {
                     setBuyerExpenses(prev => {
-                        const hasMortgageFee = prev.some(exp => exp.id === 'mortgage-registration-auto');
-                        if (!hasMortgageFee) {
-                            return [...prev, {
-                                id: 'mortgage-registration-auto',
-                                expenseType: 'mortgage-registration',
-                                description: 'DLD Mortgage Registration Fee (0.25% from FOL amount + AED 290 Admin Fee)',
-                                amount: 'TO BE CONFIRMED',
-                                mode: "Manager's Cheque",
-                                payee: "Dubai Land Department"
-                            }];
+                        const filtered = prev.filter(exp => exp.id !== 'mortgage-registration-auto');
+                        
+                        // Calculate total FOL amount from all units
+                        const totalFolAmount = units.reduce((sum, unit) => {
+                            return sum + (parseFloat(unit.folAmount) || 0);
+                        }, 0);
+                        
+                        // Determine the amount to show - just show the FOL amount directly
+                        let mortgageAmount;
+                        if (totalFolAmount > 0) {
+                            mortgageAmount = totalFolAmount.toFixed(2);
+                        } else {
+                            mortgageAmount = 'TO BE CONFIRMED';
                         }
-                        return prev;
+                        
+                        filtered.push({
+                            id: 'mortgage-registration-auto',
+                            expenseType: 'mortgage-registration',
+                            description: 'DLD Mortgage Registration Fee (0.25% from FOL amount + AED 290 Admin Fee)',
+                            amount: mortgageAmount,
+                            mode: "Manager's Cheque",
+                            payee: "Dubai Land Department"
+                        });
+                        
+                        return filtered;
                     });
                 } else {
                     setBuyerExpenses(prev => prev.filter(exp => exp.id !== 'mortgage-registration-auto'));
                 }
-            }, [propertyType]);
+            }, [propertyType, units]);
 
             const paymentModes = [
                 "Manager's Cheque",
@@ -776,10 +790,32 @@
                 return (totalSellingPrice * (percentage / 100)) * 1.05;
             };
 
+            // MODIFIED: DLD Fee calculation based on property type and price comparison
             const getDLDFee = () => {
-                const totalSellingPrice = getTotalSellingPrice();
+                let baseAmount = 0;
+                
+                if (propertyType === 'offplan') {
+                    // For offplan: compare selling price with purchase price
+                    units.forEach(unit => {
+                        const sellingPrice = parseFloat(unit.sellingPrice) || 0;
+                        const purchasePrice = parseFloat(unit.purchasePrice) || 0;
+                        
+                        if (sellingPrice < purchasePrice) {
+                            // Use purchase price (original price) for DLD calculation
+                            baseAmount += purchasePrice * 0.04;
+                        } else {
+                            // Use selling price for DLD calculation
+                            baseAmount += sellingPrice * 0.04;
+                        }
+                    });
+                } else {
+                    // For ready properties: always use selling price
+                    const totalSellingPrice = getTotalSellingPrice();
+                    baseAmount = totalSellingPrice * 0.04;
+                }
+                
                 const adminFee = getDLDAdminFee() * units.length;
-                return (totalSellingPrice * 0.04) + adminFee;
+                return baseAmount + adminFee;
             };
 
             const calculateBuyerTotal = () => {
@@ -869,6 +905,11 @@
                 html2pdf().set(opt).from(element).save();
             };
 
+            // Helper function to get payee name for Net to Seller rows
+            const getNetToSellerPayeeName = () => {
+                return formData.sellersName ? formData.sellersName : 'Seller Name';
+            };
+
             const renderBuyerSOA = () => {
                 const totalSellingPrice = getTotalSellingPrice();
                 const dldFee = getDLDFee();
@@ -930,7 +971,7 @@
                                         <td>Net to Seller{unit.name ? ` - ${unit.name}` : units.length > 1 ? ` - Unit ${index + 1}` : ''}</td>
                                         <td style={{textAlign: 'right'}}>{formatCurrency(getUnitNetToSeller(unit))}</td>
                                         <td>Manager's Cheque</td>
-                                        <td>Investmenter Real Estate LLC</td>
+                                        <td>{getNetToSellerPayeeName()}</td>
                                     </tr>
                                 ))}
                                 {getTotalBuyerPaidToDeveloper() > 0 && (
@@ -1371,7 +1412,7 @@
                                             <td style={{fontWeight: '500'}}>Net to Seller{unit.name ? ` - ${unit.name}` : units.length > 1 ? ` - Unit ${index + 1}` : ''}</td>
                                             <td style={{textAlign: 'right', fontWeight: '500'}}>{formatCurrency(getUnitNetToSeller(unit))}</td>
                                             <td>Manager's Cheque</td>
-                                            <td>Investmenter Real Estate LLC</td>
+                                            <td>{getNetToSellerPayeeName()}</td>
                                             <td style={{textAlign: 'center'}}>-</td>
                                         </tr>
                                     ))}
@@ -1536,12 +1577,15 @@
                                         <ul style={{marginLeft: '15px', marginTop: '3px'}}>
                                             <li>Sales Progression Fee: Amount varies by buyer/seller type (editable)</li>
                                             {propertyType === 'ready-mortgage' && (
-                                                <li>DLD Mortgage Registration Fee: TO BE CONFIRMED (for Ready/Mortgage only)</li>
+                                                <li>DLD Mortgage Registration Fee: Calculated from FOL amount or "TO BE CONFIRMED"</li>
                                             )}
                                         </ul>
                                     </li>
                                     <li>POA Fee, Handling Admin Fee, and Manager's Cheque Fee amounts are pre-filled when you select them</li>
                                     <li>Select "Other Cost" to add custom expenses</li>
+                                    {propertyType === 'offplan' && (
+                                        <li><strong>DLD Fee Calculation:</strong> For offplan properties, if selling price is less than original purchase price, DLD is calculated on the original price. Otherwise, it's calculated on the selling price.</li>
+                                    )}
                                 </ul>
                             </div>
 
