@@ -180,6 +180,7 @@
             border-collapse: collapse;
             margin: 15px 0;
             font-size: 11px;
+            border: 1px solid #999;
         }
 
         th {
@@ -187,12 +188,12 @@
             padding: 8px;
             text-align: left;
             font-weight: 600;
-            border: 1px solid #ccc;
+            border: 1px solid #999;
         }
 
         td {
             padding: 6px 8px;
-            border: 1px solid #ccc;
+            border: 1px solid #999;
         }
 
         .highlight-row {
@@ -400,6 +401,16 @@
                 box-shadow: none;
                 padding: 15px;
                 page-break-after: always;
+            }
+            table {
+                border-collapse: collapse !important;
+            }
+            table, th, td {
+                border: 1px solid #ccc !important;
+                page-break-inside: avoid;
+            }
+            th, td {
+                padding: 6px 8px !important;
             }
         }
 
@@ -921,23 +932,29 @@
             const downloadPDF = (type) => {
                 const element = document.getElementById(`${type}-statement`);
                 const opt = {
-                    margin: 10,
+                    margin: [8, 8, 8, 8],
                     filename: `${type}-statement-${formData.sellersName || 'document'}.pdf`,
                     image: { type: 'jpeg', quality: 0.98 },
                     html2canvas: { 
                         scale: 2,
                         useCORS: true,
                         allowTaint: true,
-                        logging: false
+                        logging: false,
+                        letterRendering: true,
+                        windowWidth: element.scrollWidth,
+                        windowHeight: element.scrollHeight
                     },
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    jsPDF: { 
+                        unit: 'mm', 
+                        format: 'a4', 
+                        orientation: 'portrait',
+                        compress: true
+                    },
+                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
                 };
                 html2pdf().set(opt).from(element).save();
             };
 
-            const getNetToSellerPayeeName = () => {
-                return formData.sellersName ? formData.sellersName : 'Seller Name';
-            };
 
             const renderBuyerSOA = () => {
                 const totalSellingPrice = getTotalSellingPrice();
@@ -1000,7 +1017,7 @@
                                         <td>Net to Seller{unit.name ? ` - ${unit.name}` : units.length > 1 ? ` - Unit ${index + 1}` : ''}</td>
                                         <td style={{textAlign: 'right'}}>{formatCurrency(getUnitNetToSeller(unit))}</td>
                                         <td>Manager's Cheque</td>
-                                        <td>{getNetToSellerPayeeName()}</td>
+                                        <td>{formData.sellersName || 'Seller'}</td>
                                     </tr>
                                 ))}
                                 {getTotalBuyerPaidToDeveloper() > 0 && (
@@ -1468,7 +1485,7 @@
                                             <td style={{fontWeight: '500'}}>Net to Seller{unit.name ? ` - ${unit.name}` : units.length > 1 ? ` - Unit ${index + 1}` : ''}</td>
                                             <td style={{textAlign: 'right', fontWeight: '500'}}>{formatCurrency(getUnitNetToSeller(unit))}</td>
                                             <td>Manager's Cheque</td>
-                                            <td>{getNetToSellerPayeeName()}</td>
+                                            <td>{formData.sellersName || 'Seller'}</td>
                                             <td style={{textAlign: 'center'}}>-</td>
                                         </tr>
                                     ))}
