@@ -47,6 +47,27 @@
             padding: 30px;
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        /* DRAFT Watermark */
+        .statement-preview::before {
+            content: 'DRAFT';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 120px;
+            font-weight: bold;
+            color: rgba(201, 169, 97, 0.15);
+            z-index: 1;
+            pointer-events: none;
+            letter-spacing: 20px;
+        }
+
+        .statement-preview > * {
+            position: relative;
+            z-index: 2;
         }
 
         .logo-container {
@@ -440,6 +461,11 @@
             margin-top: 10px;
             padding-top: 10px;
         }
+
+        .editable-amount {
+            background: #fffacd;
+            border: 1px solid #C9A961;
+        }
     </style>
 </head>
 <body>
@@ -461,7 +487,8 @@
                 transferLocation: '',
                 documentDate: new Date().toLocaleDateString('en-GB'),
                 preparedBy: 'Mackie',
-                brokerPercentage: '2'
+                buyerBrokerPercentage: '2',
+                sellerBrokerPercentage: '2'
             });
 
             const [units, setUnits] = useState([
@@ -478,6 +505,10 @@
 
             const [buyerExpenses, setBuyerExpenses] = useState([]);
             const [sellerExpenses, setSellerExpenses] = useState([]);
+
+            // Add state for custom broker fees
+            const [customBuyerBrokerFee, setCustomBuyerBrokerFee] = useState('');
+            const [customSellerBrokerFee, setCustomSellerBrokerFee] = useState('');
 
             const [generated, setGenerated] = useState(false);
             const [activeTab, setActiveTab] = useState('buyer');
@@ -503,18 +534,16 @@
                 });
             }, [buyerType, sellerType]);
 
-            // MODIFIED: Update mortgage registration fee based on FOL amount
+            // Update mortgage registration fee based on FOL amount
             useEffect(() => {
                 if (propertyType === 'ready-mortgage') {
                     setBuyerExpenses(prev => {
                         const filtered = prev.filter(exp => exp.id !== 'mortgage-registration-auto');
                         
-                        // Calculate total FOL amount from all units
                         const totalFolAmount = units.reduce((sum, unit) => {
                             return sum + (parseFloat(unit.folAmount) || 0);
                         }, 0);
                         
-                        // Determine the amount to show - just show the FOL amount directly
                         let mortgageAmount;
                         if (totalFolAmount > 0) {
                             mortgageAmount = totalFolAmount.toFixed(2);
@@ -565,26 +594,12 @@
                 return baseAmount * 1.05;
             };
 
-            const getPOAFee = (hasEmiratesID) => {
-                const baseAmount = hasEmiratesID ? 3000 : 4000;
-                return baseAmount * 1.05;
-            };
-
             const getDLDAdminFee = () => {
                 return propertyType === 'offplan' ? 40 : 580;
             };
 
             const getDLDTrusteeFee = () => {
                 return propertyType === 'offplan' ? 5250 : 4200;
-            };
-
-            const getHandlingAdminFee = () => {
-                return 4198.95;
-            };
-
-            const getMortgageRegistrationFee = (folAmount) => {
-                if (propertyType !== 'ready-mortgage' || !folAmount) return 0;
-                return (parseFloat(folAmount) * 0.0025) + 290;
             };
 
             const addUnit = () => {
@@ -784,32 +799,39 @@
                 return sellingPrice - outstandingBalance;
             };
 
-            const getBrokerFee = () => {
+            const getBuyerBrokerFee = () => {
+                if (customBuyerBrokerFee) {
+                    return parseFloat(customBuyerBrokerFee) || 0;
+                }
                 const totalSellingPrice = getTotalSellingPrice();
-                const percentage = parseFloat(formData.brokerPercentage) || 2;
+                const percentage = parseFloat(formData.buyerBrokerPercentage) || 2;
                 return (totalSellingPrice * (percentage / 100)) * 1.05;
             };
 
-            // MODIFIED: DLD Fee calculation based on property type and price comparison
+            const getSellerBrokerFee = () => {
+                if (customSellerBrokerFee) {
+                    return parseFloat(customSellerBrokerFee) || 0;
+                }
+                const totalSellingPrice = getTotalSellingPrice();
+                const percentage = parseFloat(formData.sellerBrokerPercentage) || 2;
+                return (totalSellingPrice * (percentage / 100)) * 1.05;
+            };
+
             const getDLDFee = () => {
                 let baseAmount = 0;
                 
                 if (propertyType === 'offplan') {
-                    // For offplan: compare selling price with purchase price
                     units.forEach(unit => {
                         const sellingPrice = parseFloat(unit.sellingPrice) || 0;
                         const purchasePrice = parseFloat(unit.purchasePrice) || 0;
                         
                         if (sellingPrice < purchasePrice) {
-                            // Use purchase price (original price) for DLD calculation
                             baseAmount += purchasePrice * 0.04;
                         } else {
-                            // Use selling price for DLD calculation
                             baseAmount += sellingPrice * 0.04;
                         }
                     });
                 } else {
-                    // For ready properties: always use selling price
                     const totalSellingPrice = getTotalSellingPrice();
                     baseAmount = totalSellingPrice * 0.04;
                 }
@@ -824,7 +846,7 @@
                 total += getTotalBuyerPaidToDeveloper();
                 total += getDLDFee();
                 total += getDLDTrusteeFee() * units.length;
-                total += getBrokerFee();
+                total += getBuyerBrokerFee();
                 buyerExpenses.forEach(exp => {
                     if (exp.amount && !isNaN(parseFloat(exp.amount))) {
                         total += parseFloat(exp.amount);
@@ -836,15 +858,20 @@
             const calculateSellerProceeds = () => {
                 const netToSeller = getNetToSeller();
                 const totalBuyerPaidDeveloper = getTotalBuyerPaidToDeveloper();
-                const totalOutstanding = getTotalOutstandingBalance();
+                
                 let proceeds = netToSeller;
-                proceeds -= (totalBuyerPaidDeveloper || totalOutstanding);
-                proceeds -= getBrokerFee();
+                
+                // Always deduct what buyer pays to developer (even if 0)
+                proceeds -= totalBuyerPaidDeveloper;
+                
+                proceeds -= getSellerBrokerFee();
+                
                 sellerExpenses.forEach(exp => {
                     if (exp.amount && !isNaN(parseFloat(exp.amount))) {
                         proceeds -= parseFloat(exp.amount);
                     }
                 });
+                
                 return proceeds;
             };
 
@@ -872,7 +899,8 @@
                     transferLocation: '',
                     documentDate: new Date().toLocaleDateString('en-GB'),
                     preparedBy: 'Mackie',
-                    brokerPercentage: '2'
+                    buyerBrokerPercentage: '2',
+                    sellerBrokerPercentage: '2'
                 });
                 setUnits([{ 
                     id: 1, 
@@ -885,6 +913,8 @@
                 }]);
                 setBuyerExpenses([]);
                 setSellerExpenses([]);
+                setCustomBuyerBrokerFee('');
+                setCustomSellerBrokerFee('');
                 setGenerated(false);
             };
 
@@ -905,7 +935,6 @@
                 html2pdf().set(opt).from(element).save();
             };
 
-            // Helper function to get payee name for Net to Seller rows
             const getNetToSellerPayeeName = () => {
                 return formData.sellersName ? formData.sellersName : 'Seller Name';
             };
@@ -995,8 +1024,8 @@
                                     <td>Trustee Office</td>
                                 </tr>
                                 <tr>
-                                    <td>Broker's Agency Fee incl. 5% VAT ({formData.brokerPercentage}%)</td>
-                                    <td style={{textAlign: 'right'}}>{formatCurrency(getBrokerFee())}</td>
+                                    <td>Broker's Agency Fee incl. 5% VAT ({formData.buyerBrokerPercentage}%)</td>
+                                    <td style={{textAlign: 'right'}}>{formatCurrency(getBuyerBrokerFee())}</td>
                                     <td>Manager's Cheque</td>
                                     <td>Investmenter Real Estate LLC</td>
                                 </tr>
@@ -1028,11 +1057,11 @@
                             <strong>PLEASE NOTE:</strong> Kindly provide the Managers Cheque copies to your Sales CONVEYANCER within 24 hours in order to verify the names and numbers to avoid further delay. Your cooperation is highly appreciated!<br/>
                             In order to prepare Managers Cheques you will need to visit to your bank's branch.
                             <div style={{marginTop: '10px'}}>
-                                <strong>Note:</strong><br/>
+                                <strong>Important Disclaimer:</strong><br/>
                                 1. Outstanding Balance to Developer as of {formData.documentDate} – AED {formatCurrency(getTotalOutstandingBalance())}<br/>
                                 2. Buyer will pay to Developer – AED {formatCurrency(getTotalBuyerPaidToDeveloper() || getTotalOutstandingBalance())}<br/>
                                 3. Please note that the amount paid to the developer has not yet been deducted from the Net to Seller amount. It will be deducted when transferring the remaining balance to the seller's account<br/>
-                                4. This Statement of Account is only a draft. All figures above are indicative and not final. Final amounts may vary at the time of transfer and are not guaranteed by InvestMenter Real Estate LLC.
+                                4. <strong>THIS IS A DRAFT STATEMENT. All amounts shown are ESTIMATES ONLY and are NOT FINAL. Final amounts may vary at the time of transfer and are subject to change. These figures are for planning purposes only and are not guaranteed by InvestMenter Real Estate LLC.</strong>
                             </div>
                         </div>
                     </div>
@@ -1115,15 +1144,24 @@
                                     <td></td>
                                     <td></td>
                                 </tr>
+                                {totalBuyerPaidDeveloper === 0 ? (
+                                    <tr>
+                                        <td>Amount paid by Buyer to Developer</td>
+                                        <td style={{textAlign: 'right'}}>0.00</td>
+                                        <td>Cash/Card</td>
+                                        <td>Trustee Office</td>
+                                    </tr>
+                                ) : (
+                                    <tr>
+                                        <td>Amount paid by Buyer to Developer</td>
+                                        <td style={{textAlign: 'right'}}>{formatCurrency(totalBuyerPaidDeveloper)}</td>
+                                        <td>Bank Transfer</td>
+                                        <td>Developer</td>
+                                    </tr>
+                                )}
                                 <tr>
-                                    <td>Amount paid by Buyer to Developer</td>
-                                    <td style={{textAlign: 'right'}}>{formatCurrency(totalBuyerPaidDeveloper || totalOutstanding)}</td>
-                                    <td>Cash/Card</td>
-                                    <td>Trustee Office</td>
-                                </tr>
-                                <tr>
-                                    <td>Broker's Agency Fee incl. 5% VAT ({formData.brokerPercentage}%)</td>
-                                    <td style={{textAlign: 'right'}}>{formatCurrency(getBrokerFee())}</td>
+                                    <td>Broker's Agency Fee incl. 5% VAT ({formData.sellerBrokerPercentage}%)</td>
+                                    <td style={{textAlign: 'right'}}>{formatCurrency(getSellerBrokerFee())}</td>
                                     <td>Manager's Cheque</td>
                                     <td>Investmenter Real Estate LLC</td>
                                 </tr>
@@ -1154,6 +1192,14 @@
                         <div className="note-section">
                             <strong>PLEASE NOTE:</strong> Kindly provide the Managers Cheque copies to your Sales CONVEYANCER within 24 hours in order to verify the names and numbers to avoid further delay. Your cooperation is highly appreciated!<br/>
                             In order to prepare Managers Cheques you will need to visit to your bank's branch.
+                            <div style={{marginTop: '10px'}}>
+                                <strong>Important Disclaimer:</strong><br/>
+                                1. Outstanding Balance to Developer as of {formData.documentDate} – AED {formatCurrency(getTotalOutstandingBalance())}<br/>
+                                {totalBuyerPaidDeveloper > 0 && (
+                                    <>2. Amount paid by Buyer to Developer – AED {formatCurrency(totalBuyerPaidDeveloper)}<br/></>
+                                )}
+                                <strong>THIS IS A DRAFT STATEMENT. All amounts shown are ESTIMATES ONLY and are NOT FINAL. Final amounts may vary at the time of transfer and are subject to change. These figures are for planning purposes only and are not guaranteed by InvestMenter Real Estate LLC.</strong>
+                            </div>
                         </div>
                     </div>
                 );
@@ -1284,23 +1330,33 @@
 
                             <div className="row">
                                 <div className="form-group">
-                                    <label>Broker Percentage (%)</label>
+                                    <label>Broker Percentage (%) - Buyer</label>
                                     <input 
                                         type="number" 
                                         step="0.1"
-                                        value={formData.brokerPercentage}
-                                        onChange={(e) => setFormData({...formData, brokerPercentage: e.target.value})}
+                                        value={formData.buyerBrokerPercentage}
+                                        onChange={(e) => setFormData({...formData, buyerBrokerPercentage: e.target.value})}
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label>Prepared By</label>
+                                    <label>Broker Percentage (%) - Seller</label>
                                     <input 
-                                        type="text" 
-                                        value={formData.preparedBy}
-                                        onChange={(e) => setFormData({...formData, preparedBy: e.target.value})}
-                                        placeholder="Enter preparer name"
+                                        type="number" 
+                                        step="0.1"
+                                        value={formData.sellerBrokerPercentage}
+                                        onChange={(e) => setFormData({...formData, sellerBrokerPercentage: e.target.value})}
                                     />
                                 </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label>Prepared By</label>
+                                <input 
+                                    type="text" 
+                                    value={formData.preparedBy}
+                                    onChange={(e) => setFormData({...formData, preparedBy: e.target.value})}
+                                    placeholder="Enter preparer name"
+                                />
                             </div>
 
                             <div className="section-header">Property Units & Pricing</div>
@@ -1440,11 +1496,21 @@
                                         <td style={{textAlign: 'center'}}>-</td>
                                     </tr>
                                     <tr style={{background: '#f0f8ff'}}>
-                                        <td style={{fontWeight: '500'}}>Broker's Agency Fee incl. 5% VAT ({formData.brokerPercentage}%)</td>
-                                        <td style={{textAlign: 'right', fontWeight: '500'}}>{formatCurrency(getBrokerFee())}</td>
+                                        <td style={{fontWeight: '500'}}>Broker's Agency Fee incl. 5% VAT ({formData.buyerBrokerPercentage}%)</td>
+                                        <td>
+                                            <input 
+                                                type="number"
+                                                step="0.01"
+                                                className="amount-input editable-amount"
+                                                value={customBuyerBrokerFee || getBuyerBrokerFee().toFixed(2)}
+                                                onChange={(e) => setCustomBuyerBrokerFee(e.target.value)}
+                                                title="Editable - auto-calculated based on percentage, but you can override"
+                                                style={{textAlign: 'right', fontWeight: '500'}}
+                                            />
+                                        </td>
                                         <td>Manager's Cheque</td>
                                         <td>Investmenter Real Estate LLC</td>
-                                        <td style={{textAlign: 'center'}}>-</td>
+                                        <td style={{textAlign: 'center'}}>✏️</td>
                                     </tr>
                                     {buyerExpenses.filter(exp => ['sales-progression-auto', 'mortgage-registration-auto'].includes(exp.id)).map(exp => (
                                         <tr key={exp.id} style={{
@@ -1573,7 +1639,7 @@
                             <div className="info-box" style={{marginTop: '15px'}}>
                                 <strong>💡 Quick Reference:</strong>
                                 <ul style={{marginLeft: '20px', marginTop: '5px', fontSize: '12px'}}>
-                                    <li><strong>Auto-added expenses (highlighted in yellow):</strong>
+                                    <li><strong>Auto-added expenses (highlighted):</strong>
                                         <ul style={{marginLeft: '15px', marginTop: '3px'}}>
                                             <li>Sales Progression Fee: Amount varies by buyer/seller type (editable)</li>
                                             {propertyType === 'ready-mortgage' && (
@@ -1581,6 +1647,7 @@
                                             )}
                                         </ul>
                                     </li>
+                                    <li><strong>Broker commission (yellow highlight):</strong> Auto-calculated based on percentage, but you can edit the amount directly to override</li>
                                     <li>POA Fee, Handling Admin Fee, and Manager's Cheque Fee amounts are pre-filled when you select them</li>
                                     <li>Select "Other Cost" to add custom expenses</li>
                                     {propertyType === 'offplan' && (
@@ -1625,19 +1692,31 @@
                                         <td></td>
                                         <td style={{textAlign: 'center'}}>-</td>
                                     </tr>
+                                <tr style={{background: '#f0f8ff'}}>
+                                    <td style={{fontWeight: '500'}}>Amount paid by Buyer to Developer</td>
+                                    <td style={{textAlign: 'right', fontWeight: '500'}}>
+                                        {getTotalBuyerPaidToDeveloper() > 0 ? formatCurrency(getTotalBuyerPaidToDeveloper()) : '0.00'}
+                                    </td>
+                                    <td>{getTotalBuyerPaidToDeveloper() > 0 ? 'Bank Transfer' : 'Cash/Card'}</td>
+                                    <td>{getTotalBuyerPaidToDeveloper() > 0 ? 'Developer' : 'Trustee Office'}</td>
+                                    <td style={{textAlign: 'center'}}>-</td>
+                                </tr>
                                     <tr style={{background: '#f0f8ff'}}>
-                                        <td style={{fontWeight: '500'}}>Amount paid by Buyer to Developer</td>
-                                        <td style={{textAlign: 'right', fontWeight: '500'}}>{formatCurrency(getTotalBuyerPaidToDeveloper() || getTotalOutstandingBalance())}</td>
-                                        <td>Cash/Card</td>
-                                        <td>Trustee Office</td>
-                                        <td style={{textAlign: 'center'}}>-</td>
-                                    </tr>
-                                    <tr style={{background: '#f0f8ff'}}>
-                                        <td style={{fontWeight: '500'}}>Broker's Agency Fee incl. 5% VAT ({formData.brokerPercentage}%)</td>
-                                        <td style={{textAlign: 'right', fontWeight: '500'}}>{formatCurrency(getBrokerFee())}</td>
+                                        <td style={{fontWeight: '500'}}>Broker's Agency Fee incl. 5% VAT ({formData.sellerBrokerPercentage}%)</td>
+                                        <td>
+                                            <input 
+                                                type="number"
+                                                step="0.01"
+                                                className="amount-input editable-amount"
+                                                value={customSellerBrokerFee || getSellerBrokerFee().toFixed(2)}
+                                                onChange={(e) => setCustomSellerBrokerFee(e.target.value)}
+                                                title="Editable - auto-calculated based on percentage, but you can override"
+                                                style={{textAlign: 'right', fontWeight: '500'}}
+                                            />
+                                        </td>
                                         <td>Manager's Cheque</td>
                                         <td>Investmenter Real Estate LLC</td>
-                                        <td style={{textAlign: 'center'}}>-</td>
+                                        <td style={{textAlign: 'center'}}>✏️</td>
                                     </tr>
                                     {sellerExpenses.map(exp => (
                                         <tr key={exp.id}>
@@ -1718,8 +1797,10 @@
                             <div className="info-box" style={{marginTop: '15px'}}>
                                 <strong>💡 Quick Reference:</strong>
                                 <ul style={{marginLeft: '20px', marginTop: '5px', fontSize: '12px'}}>
+                                    <li><strong>Broker commission (yellow highlight):</strong> Auto-calculated based on percentage, but you can edit the amount directly to override</li>
                                     <li>POA Fee, Handling Admin Fee, and Manager's Cheque Fee amounts are pre-filled when you select them</li>
                                     <li>Select "Other Cost" to add custom expenses</li>
+                                    <li><strong>Amount paid by Buyer to Developer:</strong> Shows exactly what you enter in the "Amount Paid by Buyer to Developer" field. If empty, shows 0.00</li>
                                 </ul>
                             </div>
 
@@ -1755,7 +1836,7 @@
                     ) : (
                         <>
                             <div className="alert">
-                                ✅ Statements generated successfully! You can now download PDFs or edit the statements below.
+                                ✅ DRAFT Statements generated successfully! All amounts are estimates and subject to change. You can now download PDFs or edit the statements below.
                             </div>
 
                             <div className="btn-group">
