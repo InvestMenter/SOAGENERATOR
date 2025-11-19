@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -48,11 +49,11 @@
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             position: relative;
+            overflow: hidden;
         }
 
-        /* DRAFT Watermark */
-        .statement-preview::before {
-            content: 'DRAFT';
+        /* DRAFT Watermark - using actual element instead of ::before for PDF compatibility */
+        .draft-watermark {
             position: absolute;
             top: 50%;
             left: 50%;
@@ -63,9 +64,10 @@
             z-index: 1;
             pointer-events: none;
             letter-spacing: 20px;
+            user-select: none;
         }
 
-        .statement-preview > * {
+        .statement-preview > div {
             position: relative;
             z-index: 2;
         }
@@ -179,7 +181,7 @@
             width: 100%;
             border-collapse: collapse;
             margin: 15px 0;
-            font-size: 11px;
+            font-size: 10px;
             border: 1px solid #999;
         }
 
@@ -394,23 +396,32 @@
             body {
                 background: white;
             }
-            .form-section, .btn-group {
-                display: none;
+            .form-section, .btn-group, .tabs, .alert {
+                display: none !important;
             }
             .statement-preview {
                 box-shadow: none;
-                padding: 15px;
+                padding: 20px;
                 page-break-after: always;
+                width: 100%;
+                max-width: 100%;
+                overflow: visible;
             }
             table {
                 border-collapse: collapse !important;
+                width: 100%;
+                font-size: 10px;
             }
             table, th, td {
-                border: 1px solid #ccc !important;
+                border: 1px solid #999 !important;
                 page-break-inside: avoid;
             }
             th, td {
-                padding: 6px 8px !important;
+                padding: 5px 6px !important;
+            }
+            .draft-watermark {
+                display: block !important;
+                opacity: 1 !important;
             }
         }
 
@@ -932,17 +943,17 @@
             const downloadPDF = (type) => {
                 const element = document.getElementById(`${type}-statement`);
                 const opt = {
-                    margin: [8, 8, 8, 8],
+                    margin: [8, 5, 8, 5],
                     filename: `${type}-statement-${formData.sellersName || 'document'}.pdf`,
                     image: { type: 'jpeg', quality: 0.98 },
                     html2canvas: { 
-                        scale: 2,
+                        scale: 1.5,
                         useCORS: true,
                         allowTaint: true,
                         logging: false,
                         letterRendering: true,
-                        windowWidth: element.scrollWidth,
-                        windowHeight: element.scrollHeight
+                        width: 800,
+                        windowWidth: 800
                     },
                     jsPDF: { 
                         unit: 'mm', 
@@ -962,7 +973,8 @@
                 const trusteeFee = getDLDTrusteeFee() * units.length;
 
                 return (
-                    <div id="buyer-statement">
+                    <div id="buyer-statement" style={{position: 'relative'}}>
+                        <div className="draft-watermark">DRAFT</div>
                         <div className="logo-container">
                             <img src="https://i.imgur.com/iyarNKS.png" alt="InvestMenter Logo" className="logo" crossOrigin="anonymous" />
                         </div>
@@ -1091,7 +1103,8 @@
                 const totalBuyerPaidDeveloper = getTotalBuyerPaidToDeveloper();
 
                 return (
-                    <div id="seller-statement">
+                    <div id="seller-statement" style={{position: 'relative'}}>
+                        <div className="draft-watermark">DRAFT</div>
                         <div className="logo-container">
                             <img src="https://i.imgur.com/iyarNKS.png" alt="InvestMenter Logo" className="logo" crossOrigin="anonymous" />
                         </div>
