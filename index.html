@@ -180,20 +180,20 @@
             width: 100%;
             border-collapse: collapse;
             margin: 15px 0;
-            font-size: 9px;
+            font-size: 8.5px;
             border: 1px solid #999;
         }
 
         th {
             background: #D4C5A0;
-            padding: 8px;
+            padding: 7px;
             text-align: left;
             font-weight: 600;
             border: 1px solid #999;
         }
 
         td {
-            padding: 6px 8px;
+            padding: 5px 6px;
             border: 1px solid #999;
         }
 
@@ -400,7 +400,7 @@
             }
             .statement-preview {
                 box-shadow: none;
-                padding: 15px;
+                padding: 10px;
                 page-break-after: always;
                 width: 100%;
                 max-width: 100%;
@@ -409,28 +409,34 @@
             table {
                 border-collapse: collapse !important;
                 width: 100%;
-                font-size: 8px !important;
+                font-size: 7px !important;
             }
             table, th, td {
                 border: 1px solid #999 !important;
                 page-break-inside: avoid;
             }
             th, td {
-                padding: 4px 5px !important;
+                padding: 3px 4px !important;
             }
             th {
-                font-size: 8px !important;
+                font-size: 7px !important;
             }
             .info-row {
-                font-size: 9px !important;
+                font-size: 8px !important;
             }
             .note-section {
+                font-size: 7px !important;
+            }
+            .document-info {
                 font-size: 8px !important;
+            }
+            h2 {
+                font-size: 12px !important;
             }
             .draft-watermark {
                 display: block !important;
                 opacity: 1 !important;
-                font-size: 100px !important;
+                font-size: 90px !important;
             }
         }
 
@@ -952,21 +958,17 @@
             const downloadPDF = (type) => {
                 const element = document.getElementById(`${type}-statement`);
                 
-                // Temporarily reduce font sizes for better PDF fitting
-                const originalFontSize = element.style.fontSize;
-                element.style.fontSize = '9px';
-                
                 const opt = {
-                    margin: [10, 3, 10, 3],
+                    margin: [10, 2, 10, 2],
                     filename: `${type}-statement-${formData.sellersName || 'document'}.pdf`,
                     image: { type: 'jpeg', quality: 0.95 },
                     html2canvas: { 
-                        scale: 1.3,
+                        scale: 1.1,
                         useCORS: true,
                         allowTaint: true,
                         logging: false,
                         letterRendering: true,
-                        width: 750
+                        width: 700
                     },
                     jsPDF: { 
                         unit: 'mm', 
@@ -977,10 +979,7 @@
                     pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
                 };
                 
-                html2pdf().set(opt).from(element).save().then(() => {
-                    // Restore original font size
-                    element.style.fontSize = originalFontSize;
-                });
+                html2pdf().set(opt).from(element).save();
             };
 
 
@@ -1035,9 +1034,9 @@
                             <thead>
                                 <tr>
                                     <th>* Description of expenses*</th>
-                                    <th style={{width: '150px'}}>Amount to be Prepared By Buyer</th>
-                                    <th style={{width: '150px'}}>Mode of Payment</th>
-                                    <th style={{width: '180px'}}>Payee Name</th>
+                                    <th style={{width: '130px'}}>Amount to be Prepared By Buyer</th>
+                                    <th style={{width: '120px'}}>Mode of Payment</th>
+                                    <th style={{width: '150px'}}>Payee Name</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1165,9 +1164,9 @@
                             <thead>
                                 <tr>
                                     <th>Remarks</th>
-                                    <th style={{width: '150px'}}>Amount</th>
-                                    <th style={{width: '150px'}}>Mode of Payment</th>
-                                    <th style={{width: '180px'}}>Payee Name</th>
+                                    <th style={{width: '130px'}}>Amount</th>
+                                    <th style={{width: '120px'}}>Mode of Payment</th>
+                                    <th style={{width: '150px'}}>Payee Name</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1503,9 +1502,9 @@
                                 <thead>
                                     <tr>
                                         <th>* Description of expenses*</th>
-                                        <th style={{width: '150px'}}>Amount to be Prepared By Buyer</th>
-                                        <th style={{width: '150px'}}>Mode of Payment</th>
-                                        <th style={{width: '180px'}}>Payee Name</th>
+                                        <th style={{width: '130px'}}>Amount to be Prepared By Buyer</th>
+                                        <th style={{width: '120px'}}>Mode of Payment</th>
+                                        <th style={{width: '150px'}}>Payee Name</th>
                                         <th style={{width: '60px'}}>Action</th>
                                     </tr>
                                 </thead>
@@ -1709,9 +1708,9 @@
                                 <thead>
                                     <tr>
                                         <th>Remarks</th>
-                                        <th style={{width: '150px'}}>Amount</th>
-                                        <th style={{width: '150px'}}>Mode of Payment</th>
-                                        <th style={{width: '180px'}}>Payee Name</th>
+                                        <th style={{width: '130px'}}>Amount</th>
+                                        <th style={{width: '120px'}}>Mode of Payment</th>
+                                        <th style={{width: '150px'}}>Payee Name</th>
                                         <th style={{width: '60px'}}>Action</th>
                                     </tr>
                                 </thead>
