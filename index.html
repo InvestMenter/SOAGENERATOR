@@ -188,7 +188,7 @@
         th {
             background: #D4C5A0;
             padding: 8px;
-            text-align: left;
+            text-align: center;
             font-weight: 600;
             border: 1px solid #999;
         }
@@ -900,26 +900,28 @@
                 const netToSeller = getNetToSeller();
                 const totalBuyerPaidDeveloper = getTotalBuyerPaidToDeveloper();
                 
-                let proceeds = netToSeller;
-                
-                // If seller has UAE bank account, ADD all expenses (they need money to pay them)
+                // If seller has UAE bank account, return ONLY the total of expenses
                 if (sellerHasUAEBankAccount) {
+                    let totalExpenses = 0;
+                    
                     if (totalBuyerPaidDeveloper > 0) {
-                        proceeds += totalBuyerPaidDeveloper;
+                        totalExpenses += totalBuyerPaidDeveloper;
                     }
                     
-                    proceeds += getSellerBrokerFee();
+                    totalExpenses += getSellerBrokerFee();
                     
                     sellerExpenses.forEach(exp => {
                         if (exp.amount && !isNaN(parseFloat(exp.amount))) {
-                            proceeds += parseFloat(exp.amount);
+                            totalExpenses += parseFloat(exp.amount);
                         }
                     });
                     
-                    return proceeds;
+                    return totalExpenses;
                 }
                 
-                // If no UAE bank account, SUBTRACT all expenses
+                // If no UAE bank account, SUBTRACT all expenses from net to seller
+                let proceeds = netToSeller;
+                
                 if (totalBuyerPaidDeveloper > 0) {
                     proceeds -= totalBuyerPaidDeveloper;
                 }
@@ -1183,78 +1185,166 @@
                             <div className="info-value">AED {formatCurrency(totalSellingPrice)}</div>
                         </div>
 
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th style={{width: '45%'}}>Remarks</th>
-                                    <th style={{width: '18%'}}>Amount</th>
-                                    <th style={{width: '17%'}}>Mode of Payment</th>
-                                    <th style={{width: '20%'}}>Payee Name</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {units.map((unit, index) => (
-                                    <tr key={unit.id}>
-                                        <td>Net to Seller{unit.name ? ` - ${unit.name}` : units.length > 1 ? ` - Unit ${index + 1}` : ''}</td>
-                                        <td style={{textAlign: 'right'}}>{formatCurrency(getUnitNetToSeller(unit))}</td>
-                                        <td>Manager's Cheque</td>
-                                        <td>{formData.sellersName || 'Seller'}</td>
-                                    </tr>
-                                ))}
-                                <tr>
-                                    <td><strong>Total Amount Sales Proceeds</strong></td>
-                                    <td style={{textAlign: 'right'}}><strong>{formatCurrency(getNetToSeller())}</strong></td>
-                                    <td>Manager's Cheque</td>
-                                    <td></td>
-                                </tr>
-                                
-                                <tr>
-                                    <td><strong>{sellerHasUAEBankAccount ? 'Add:' : 'Less:'}</strong></td>
-                                    <td></td>
-                                    <td></td>
-                                    <td></td>
-                                </tr>
-                                
-                                {totalBuyerPaidDeveloper > 0 && (
-                                    <tr>
-                                        <td>Amount paid by Buyer to Developer</td>
-                                        <td style={{textAlign: 'right'}}>{formatCurrency(totalBuyerPaidDeveloper)}</td>
-                                        <td>Bank Transfer</td>
-                                        <td>Developer</td>
-                                    </tr>
-                                )}
-                                
-                                <tr>
-                                    <td>Broker's Agency Fee incl. 5% VAT ({formData.sellerBrokerPercentage}%)</td>
-                                    <td style={{textAlign: 'right'}}>{formatCurrency(getSellerBrokerFee())}</td>
-                                    <td>Manager's Cheque</td>
-                                    <td>Investmenter Real Estate LLC</td>
-                                </tr>
-                                
-                                {sellerExpenses.map(exp => {
-                                    const hasValidAmount = exp.amount && (!isNaN(parseFloat(exp.amount)) || exp.amount === 'TO BE CONFIRMED');
-                                    const isNumeric = exp.amount && !isNaN(parseFloat(exp.amount));
-                                    
-                                    return hasValidAmount ? (
-                                        <tr key={exp.id}>
-                                            <td>{exp.description}</td>
-                                            <td style={{textAlign: 'right'}}>
-                                                {isNumeric ? formatCurrency(parseFloat(exp.amount)) : exp.amount}
-                                            </td>
-                                            <td>{exp.mode}</td>
-                                            <td>{exp.payee}</td>
+                        {sellerHasUAEBankAccount ? (
+                            // If seller has UAE bank account: Show TWO separate tables
+                            <>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th style={{width: '45%'}}>Description</th>
+                                            <th style={{width: '18%'}}>Amount</th>
+                                            <th style={{width: '17%'}}>Mode of Payment</th>
+                                            <th style={{width: '20%'}}>Payee Name</th>
                                         </tr>
-                                    ) : null;
-                                })}
-                                
-                                <tr className="highlight-row">
-                                    <td>Final Sales Proceeds</td>
-                                    <td style={{textAlign: 'right'}}>AED {formatCurrency(calculateSellerProceeds())}</td>
-                                    <td></td>
-                                    <td></td>
-                                </tr>
-                            </tbody>
-                        </table>
+                                    </thead>
+                                    <tbody>
+                                        {units.map((unit, index) => (
+                                            <tr key={unit.id}>
+                                                <td>Net to Seller{unit.name ? ` - ${unit.name}` : units.length > 1 ? ` - Unit ${index + 1}` : ''}</td>
+                                                <td style={{textAlign: 'right'}}>{formatCurrency(getUnitNetToSeller(unit))}</td>
+                                                <td>Manager's Cheque</td>
+                                                <td>{formData.sellersName || 'Seller'}</td>
+                                            </tr>
+                                        ))}
+                                        <tr>
+                                            <td><strong>Total Amount Sales Proceeds</strong></td>
+                                            <td style={{textAlign: 'right'}}><strong>{formatCurrency(getNetToSeller())}</strong></td>
+                                            <td>Manager's Cheque</td>
+                                            <td></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                <div style={{marginTop: '20px', marginBottom: '10px'}}>
+                                    <strong>Breakdown for the Seller:</strong>
+                                </div>
+
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th style={{width: '45%'}}>Expenses</th>
+                                            <th style={{width: '20%'}}>Amount to be Prepared</th>
+                                            <th style={{width: '17%'}}>Mode of Payment</th>
+                                            <th style={{width: '18%'}}>Payee Name</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {totalBuyerPaidDeveloper > 0 && (
+                                            <tr>
+                                                <td>Amount paid by Buyer to Developer</td>
+                                                <td style={{textAlign: 'right'}}>{formatCurrency(totalBuyerPaidDeveloper)}</td>
+                                                <td>Bank Transfer</td>
+                                                <td>Developer</td>
+                                            </tr>
+                                        )}
+                                        
+                                        <tr>
+                                            <td>Broker's Agency Fee incl. 5% VAT ({formData.sellerBrokerPercentage}%)</td>
+                                            <td style={{textAlign: 'right'}}>{formatCurrency(getSellerBrokerFee())}</td>
+                                            <td>Manager's Cheque</td>
+                                            <td>Investmenter Real Estate LLC</td>
+                                        </tr>
+                                        
+                                        {sellerExpenses.map(exp => {
+                                            const hasValidAmount = exp.amount && (!isNaN(parseFloat(exp.amount)) || exp.amount === 'TO BE CONFIRMED');
+                                            const isNumeric = exp.amount && !isNaN(parseFloat(exp.amount));
+                                            
+                                            return hasValidAmount ? (
+                                                <tr key={exp.id}>
+                                                    <td>{exp.description}</td>
+                                                    <td style={{textAlign: 'right'}}>
+                                                        {isNumeric ? formatCurrency(parseFloat(exp.amount)) : exp.amount}
+                                                    </td>
+                                                    <td>{exp.mode}</td>
+                                                    <td>{exp.payee}</td>
+                                                </tr>
+                                            ) : null;
+                                        })}
+                                        
+                                        <tr className="highlight-row">
+                                            <td><strong>Gross Net To Seller</strong></td>
+                                            <td style={{textAlign: 'right'}}><strong>{formatCurrency(calculateSellerProceeds())}</strong></td>
+                                            <td></td>
+                                            <td></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </>
+                        ) : (
+                            // If seller has NO UAE bank account: Show single table with deductions
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style={{width: '45%'}}>Remarks</th>
+                                        <th style={{width: '18%'}}>Amount</th>
+                                        <th style={{width: '17%'}}>Mode of Payment</th>
+                                        <th style={{width: '20%'}}>Payee Name</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {units.map((unit, index) => (
+                                        <tr key={unit.id}>
+                                            <td>Net to Seller{unit.name ? ` - ${unit.name}` : units.length > 1 ? ` - Unit ${index + 1}` : ''}</td>
+                                            <td style={{textAlign: 'right'}}>{formatCurrency(getUnitNetToSeller(unit))}</td>
+                                            <td>Manager's Cheque</td>
+                                            <td>{formData.sellersName || 'Seller'}</td>
+                                        </tr>
+                                    ))}
+                                    <tr>
+                                        <td><strong>Total Amount Sales Proceeds</strong></td>
+                                        <td style={{textAlign: 'right'}}><strong>{formatCurrency(getNetToSeller())}</strong></td>
+                                        <td>Manager's Cheque</td>
+                                        <td></td>
+                                    </tr>
+                                    
+                                    <tr>
+                                        <td><strong>Less:</strong></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                    </tr>
+                                    
+                                    {totalBuyerPaidDeveloper > 0 && (
+                                        <tr>
+                                            <td>Amount paid by Buyer to Developer</td>
+                                            <td style={{textAlign: 'right'}}>{formatCurrency(totalBuyerPaidDeveloper)}</td>
+                                            <td>Bank Transfer</td>
+                                            <td>Developer</td>
+                                        </tr>
+                                    )}
+                                    
+                                    <tr>
+                                        <td>Broker's Agency Fee incl. 5% VAT ({formData.sellerBrokerPercentage}%)</td>
+                                        <td style={{textAlign: 'right'}}>{formatCurrency(getSellerBrokerFee())}</td>
+                                        <td>Manager's Cheque</td>
+                                        <td>Investmenter Real Estate LLC</td>
+                                    </tr>
+                                    
+                                    {sellerExpenses.map(exp => {
+                                        const hasValidAmount = exp.amount && (!isNaN(parseFloat(exp.amount)) || exp.amount === 'TO BE CONFIRMED');
+                                        const isNumeric = exp.amount && !isNaN(parseFloat(exp.amount));
+                                        
+                                        return hasValidAmount ? (
+                                            <tr key={exp.id}>
+                                                <td>{exp.description}</td>
+                                                <td style={{textAlign: 'right'}}>
+                                                    {isNumeric ? formatCurrency(parseFloat(exp.amount)) : exp.amount}
+                                                </td>
+                                                <td>{exp.mode}</td>
+                                                <td>{exp.payee}</td>
+                                            </tr>
+                                        ) : null;
+                                    })}
+                                    
+                                    <tr className="highlight-row">
+                                        <td>Final Sales Proceeds</td>
+                                        <td style={{textAlign: 'right'}}>AED {formatCurrency(calculateSellerProceeds())}</td>
+                                        <td></td>
+                                        <td></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        )}
 
                         <div className="note-section">
                             <strong>PLEASE NOTE:</strong> Kindly provide the Managers Cheque copies to your Sales CONVEYANCER within 24 hours in order to verify the names and numbers to avoid further delay. Your cooperation is highly appreciated!<br/>
@@ -1437,7 +1527,7 @@
                                     <span>Seller has UAE Bank Account</span>
                                 </label>
                                 <small style={{display: 'block', marginTop: '5px', color: '#666', fontSize: '12px'}}>
-                                    If checked: Expenses ADDED to proceeds (shows "Add:"). If unchecked: Expenses SUBTRACTED from proceeds (shows "Less:").
+                                    If checked: Shows TWO separate tables - Table 1: Net to Seller, Table 2: Expenses with total. If unchecked: Single table with "Less:" and deductions.
                                 </small>
                             </div>
 
@@ -1740,145 +1830,298 @@
 
                             <div className="section-header">Seller Statement Breakdown</div>
                             
-                            <table className="expense-table">
-                                <thead>
-                                    <tr>
-                                        <th style={{width: '40%'}}>Remarks</th>
-                                        <th style={{width: '18%'}}>Amount</th>
-                                        <th style={{width: '15%'}}>Mode of Payment</th>
-                                        <th style={{width: '20%'}}>Payee Name</th>
-                                        <th style={{width: '7%'}}>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {units.map((unit, index) => (
-                                        <tr key={`seller-net-${unit.id}`} style={{background: '#f0f8ff'}}>
-                                            <td style={{fontWeight: '500'}}>Net to Seller{unit.name ? ` - ${unit.name}` : units.length > 1 ? ` - Unit ${index + 1}` : ''}</td>
-                                            <td style={{textAlign: 'right', fontWeight: '500'}}>{formatCurrency(getUnitNetToSeller(unit))}</td>
-                                            <td>Manager's Cheque</td>
-                                            <td>{formData.sellersName || 'Seller'}</td>
-                                            <td style={{textAlign: 'center'}}>-</td>
-                                        </tr>
-                                    ))}
-                                    <tr style={{background: '#e8f5e9'}}>
-                                        <td style={{fontWeight: 'bold'}}>Total Amount Sales Proceeds</td>
-                                        <td style={{textAlign: 'right', fontWeight: 'bold'}}>{formatCurrency(getNetToSeller())}</td>
-                                        <td>Manager's Cheque</td>
-                                        <td></td>
-                                        <td style={{textAlign: 'center'}}>-</td>
-                                    </tr>
-                                    
-                                    <tr style={{background: '#fff3cd'}}>
-                                        <td style={{fontWeight: 'bold'}}>{sellerHasUAEBankAccount ? 'Add:' : 'Less:'}</td>
-                                        <td></td>
-                                        <td></td>
-                                        <td></td>
-                                        <td style={{textAlign: 'center'}}>-</td>
-                                    </tr>
-                                    
-                                    {getTotalBuyerPaidToDeveloper() > 0 && (
-                                        <tr style={{background: '#f0f8ff'}}>
-                                            <td style={{fontWeight: '500'}}>Amount paid by Buyer to Developer</td>
-                                            <td style={{textAlign: 'right', fontWeight: '500'}}>
-                                                {formatCurrency(getTotalBuyerPaidToDeveloper())}
-                                            </td>
-                                            <td>Bank Transfer</td>
-                                            <td>Developer</td>
-                                            <td style={{textAlign: 'center'}}>-</td>
-                                        </tr>
-                                    )}
-                                    
-                                    <tr style={{background: '#f0f8ff'}}>
-                                        <td style={{fontWeight: '500'}}>Broker's Agency Fee incl. 5% VAT ({formData.sellerBrokerPercentage}%)</td>
-                                        <td>
-                                            <input 
-                                                type="number"
-                                                step="0.01"
-                                                className="amount-input editable-amount"
-                                                value={customSellerBrokerFee || getSellerBrokerFee().toFixed(2)}
-                                                onChange={(e) => setCustomSellerBrokerFee(e.target.value)}
-                                                title="Editable - auto-calculated based on percentage, but you can override"
-                                                style={{textAlign: 'right', fontWeight: '500'}}
-                                            />
-                                        </td>
-                                        <td>Manager's Cheque</td>
-                                        <td>Investmenter Real Estate LLC</td>
-                                        <td style={{textAlign: 'center'}}>✏️</td>
-                                    </tr>
-                                    
-                                    {sellerExpenses.map(exp => (
-                                        <tr key={exp.id}>
-                                            <td>
-                                                <select 
-                                                    value={exp.expenseType || 'other'}
-                                                    onChange={(e) => updateSellerExpense(exp.id, 'expenseType', e.target.value)}
-                                                    style={{width: '100%', marginBottom: exp.expenseType === 'other' ? '5px' : '0'}}
-                                                >
-                                                    <option value="poa-no-eid">POA Fee (no Emirates ID) incl. 5% VAT</option>
-                                                    <option value="poa-with-eid">POA Fee (with Emirates ID) incl. 5% VAT</option>
-                                                    <option value="handling-admin">Handling Admin Fee incl. 5% VAT</option>
-                                                    <option value="managers-cheque-fee">Manager's Cheque Fee (No Escrow Service) (10% Security Deposit)</option>
-                                                    <option value="other">Other Cost</option>
-                                                </select>
-                                                {exp.expenseType === 'other' && (
+                            {sellerHasUAEBankAccount ? (
+                                // If seller has UAE bank account: Show TWO separate tables
+                                <>
+                                    <table className="expense-table">
+                                        <thead>
+                                            <tr>
+                                                <th style={{width: '45%'}}>Description</th>
+                                                <th style={{width: '20%'}}>Amount</th>
+                                                <th style={{width: '15%'}}>Mode of Payment</th>
+                                                <th style={{width: '20%'}}>Payee Name</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {units.map((unit, index) => (
+                                                <tr key={`seller-net-${unit.id}`} style={{background: '#f0f8ff'}}>
+                                                    <td style={{fontWeight: '500'}}>Net to Seller{unit.name ? ` - ${unit.name}` : units.length > 1 ? ` - Unit ${index + 1}` : ''}</td>
+                                                    <td style={{textAlign: 'right', fontWeight: '500'}}>{formatCurrency(getUnitNetToSeller(unit))}</td>
+                                                    <td>Manager's Cheque</td>
+                                                    <td>{formData.sellersName || 'Seller'}</td>
+                                                </tr>
+                                            ))}
+                                            <tr style={{background: '#e8f5e9'}}>
+                                                <td style={{fontWeight: 'bold'}}>Total Amount Sales Proceeds</td>
+                                                <td style={{textAlign: 'right', fontWeight: 'bold'}}>{formatCurrency(getNetToSeller())}</td>
+                                                <td>Manager's Cheque</td>
+                                                <td></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+
+                                    <div style={{marginTop: '20px', marginBottom: '10px', fontWeight: 'bold'}}>
+                                        Breakdown for the Seller:
+                                    </div>
+
+                                    <table className="expense-table">
+                                        <thead>
+                                            <tr>
+                                                <th style={{width: '35%'}}>Expenses</th>
+                                                <th style={{width: '20%'}}>Amount to be Prepared</th>
+                                                <th style={{width: '15%'}}>Mode of Payment</th>
+                                                <th style={{width: '20%'}}>Payee Name</th>
+                                                <th style={{width: '10%'}}>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {getTotalBuyerPaidToDeveloper() > 0 && (
+                                                <tr style={{background: '#f0f8ff'}}>
+                                                    <td style={{fontWeight: '500'}}>Amount paid by Buyer to Developer</td>
+                                                    <td style={{textAlign: 'right', fontWeight: '500'}}>
+                                                        {formatCurrency(getTotalBuyerPaidToDeveloper())}
+                                                    </td>
+                                                    <td>Bank Transfer</td>
+                                                    <td>Developer</td>
+                                                    <td style={{textAlign: 'center'}}>-</td>
+                                                </tr>
+                                            )}
+                                            
+                                            <tr style={{background: '#f0f8ff'}}>
+                                                <td style={{fontWeight: '500'}}>Broker's Agency Fee incl. 5% VAT ({formData.sellerBrokerPercentage}%)</td>
+                                                <td>
                                                     <input 
-                                                        type="text" 
-                                                        value={exp.description}
-                                                        onChange={(e) => updateSellerExpense(exp.id, 'description', e.target.value)}
-                                                        placeholder="Enter custom expense description"
-                                                        style={{width: '100%'}}
+                                                        type="number"
+                                                        step="0.01"
+                                                        className="amount-input editable-amount"
+                                                        value={customSellerBrokerFee || getSellerBrokerFee().toFixed(2)}
+                                                        onChange={(e) => setCustomSellerBrokerFee(e.target.value)}
+                                                        title="Editable - auto-calculated based on percentage, but you can override"
+                                                        style={{textAlign: 'right', fontWeight: '500'}}
                                                     />
-                                                )}
-                                            </td>
+                                                </td>
+                                                <td>Manager's Cheque</td>
+                                                <td>Investmenter Real Estate LLC</td>
+                                                <td style={{textAlign: 'center'}}>✏️</td>
+                                            </tr>
+                                            
+                                            {sellerExpenses.map(exp => (
+                                                <tr key={exp.id}>
+                                                    <td>
+                                                        <select 
+                                                            value={exp.expenseType || 'other'}
+                                                            onChange={(e) => updateSellerExpense(exp.id, 'expenseType', e.target.value)}
+                                                            style={{width: '100%', marginBottom: exp.expenseType === 'other' ? '5px' : '0'}}
+                                                        >
+                                                            <option value="poa-no-eid">POA Fee (no Emirates ID) incl. 5% VAT</option>
+                                                            <option value="poa-with-eid">POA Fee (with Emirates ID) incl. 5% VAT</option>
+                                                            <option value="handling-admin">Handling Admin Fee incl. 5% VAT</option>
+                                                            <option value="managers-cheque-fee">Manager's Cheque Fee (No Escrow Service) (10% Security Deposit)</option>
+                                                            <option value="other">Other Cost</option>
+                                                        </select>
+                                                        {exp.expenseType === 'other' && (
+                                                            <input 
+                                                                type="text" 
+                                                                value={exp.description}
+                                                                onChange={(e) => updateSellerExpense(exp.id, 'description', e.target.value)}
+                                                                placeholder="Enter custom expense description"
+                                                                style={{width: '100%'}}
+                                                            />
+                                                        )}
+                                                    </td>
+                                                    <td>
+                                                        <input 
+                                                            type="text" 
+                                                            className="amount-input"
+                                                            value={exp.amount}
+                                                            onChange={(e) => updateSellerExpense(exp.id, 'amount', e.target.value)}
+                                                            placeholder="0.00"
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <select 
+                                                            value={exp.mode}
+                                                            onChange={(e) => updateSellerExpense(exp.id, 'mode', e.target.value)}
+                                                        >
+                                                            {paymentModes.map(mode => (
+                                                                <option key={mode} value={mode}>{mode}</option>
+                                                            ))}
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <select 
+                                                            value={exp.payee}
+                                                            onChange={(e) => updateSellerExpense(exp.id, 'payee', e.target.value)}
+                                                        >
+                                                            {payeeOptions.map(option => (
+                                                                <option key={option} value={option}>{option}</option>
+                                                            ))}
+                                                        </select>
+                                                    </td>
+                                                    <td style={{textAlign: 'center'}}>
+                                                        <button 
+                                                            className="btn-remove"
+                                                            onClick={() => removeSellerExpense(exp.id)}
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            
+                                            <tr style={{background: '#FFFF00'}}>
+                                                <td style={{fontWeight: 'bold'}}>Gross Net To Seller</td>
+                                                <td style={{textAlign: 'right', fontWeight: 'bold'}}>{formatCurrency(calculateSellerProceeds())}</td>
+                                                <td></td>
+                                                <td></td>
+                                                <td style={{textAlign: 'center'}}>-</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </>
+                            ) : (
+                                // If seller has NO UAE bank account: Show single table with deductions
+                                <table className="expense-table">
+                                    <thead>
+                                        <tr>
+                                            <th style={{width: '40%'}}>Remarks</th>
+                                            <th style={{width: '18%'}}>Amount</th>
+                                            <th style={{width: '15%'}}>Mode of Payment</th>
+                                            <th style={{width: '20%'}}>Payee Name</th>
+                                            <th style={{width: '7%'}}>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {units.map((unit, index) => (
+                                            <tr key={`seller-net-${unit.id}`} style={{background: '#f0f8ff'}}>
+                                                <td style={{fontWeight: '500'}}>Net to Seller{unit.name ? ` - ${unit.name}` : units.length > 1 ? ` - Unit ${index + 1}` : ''}</td>
+                                                <td style={{textAlign: 'right', fontWeight: '500'}}>{formatCurrency(getUnitNetToSeller(unit))}</td>
+                                                <td>Manager's Cheque</td>
+                                                <td>{formData.sellersName || 'Seller'}</td>
+                                                <td style={{textAlign: 'center'}}>-</td>
+                                            </tr>
+                                        ))}
+                                        <tr style={{background: '#e8f5e9'}}>
+                                            <td style={{fontWeight: 'bold'}}>Total Amount Sales Proceeds</td>
+                                            <td style={{textAlign: 'right', fontWeight: 'bold'}}>{formatCurrency(getNetToSeller())}</td>
+                                            <td>Manager's Cheque</td>
+                                            <td></td>
+                                            <td style={{textAlign: 'center'}}>-</td>
+                                        </tr>
+                                        
+                                        <tr style={{background: '#fff3cd'}}>
+                                            <td style={{fontWeight: 'bold'}}>Less:</td>
+                                            <td></td>
+                                            <td></td>
+                                            <td></td>
+                                            <td style={{textAlign: 'center'}}>-</td>
+                                        </tr>
+                                        
+                                        {getTotalBuyerPaidToDeveloper() > 0 && (
+                                            <tr style={{background: '#f0f8ff'}}>
+                                                <td style={{fontWeight: '500'}}>Amount paid by Buyer to Developer</td>
+                                                <td style={{textAlign: 'right', fontWeight: '500'}}>
+                                                    {formatCurrency(getTotalBuyerPaidToDeveloper())}
+                                                </td>
+                                                <td>Bank Transfer</td>
+                                                <td>Developer</td>
+                                                <td style={{textAlign: 'center'}}>-</td>
+                                            </tr>
+                                        )}
+                                        
+                                        <tr style={{background: '#f0f8ff'}}>
+                                            <td style={{fontWeight: '500'}}>Broker's Agency Fee incl. 5% VAT ({formData.sellerBrokerPercentage}%)</td>
                                             <td>
                                                 <input 
-                                                    type="text" 
-                                                    className="amount-input"
-                                                    value={exp.amount}
-                                                    onChange={(e) => updateSellerExpense(exp.id, 'amount', e.target.value)}
-                                                    placeholder="0.00"
+                                                    type="number"
+                                                    step="0.01"
+                                                    className="amount-input editable-amount"
+                                                    value={customSellerBrokerFee || getSellerBrokerFee().toFixed(2)}
+                                                    onChange={(e) => setCustomSellerBrokerFee(e.target.value)}
+                                                    title="Editable - auto-calculated based on percentage, but you can override"
+                                                    style={{textAlign: 'right', fontWeight: '500'}}
                                                 />
                                             </td>
-                                            <td>
-                                                <select 
-                                                    value={exp.mode}
-                                                    onChange={(e) => updateSellerExpense(exp.id, 'mode', e.target.value)}
-                                                >
-                                                    {paymentModes.map(mode => (
-                                                        <option key={mode} value={mode}>{mode}</option>
-                                                    ))}
-                                                </select>
-                                            </td>
-                                            <td>
-                                                <select 
-                                                    value={exp.payee}
-                                                    onChange={(e) => updateSellerExpense(exp.id, 'payee', e.target.value)}
-                                                >
-                                                    {payeeOptions.map(option => (
-                                                        <option key={option} value={option}>{option}</option>
-                                                    ))}
-                                                </select>
-                                            </td>
-                                            <td style={{textAlign: 'center'}}>
-                                                <button 
-                                                    className="btn-remove"
-                                                    onClick={() => removeSellerExpense(exp.id)}
-                                                >
-                                                    ✕
-                                                </button>
-                                            </td>
+                                            <td>Manager's Cheque</td>
+                                            <td>Investmenter Real Estate LLC</td>
+                                            <td style={{textAlign: 'center'}}>✏️</td>
                                         </tr>
-                                    ))}
-                                    
-                                    <tr style={{background: '#FFFF00'}}>
-                                        <td style={{fontWeight: 'bold'}}>Final Sales Proceeds</td>
-                                        <td style={{textAlign: 'right', fontWeight: 'bold'}}>AED {formatCurrency(calculateSellerProceeds())}</td>
-                                        <td></td>
-                                        <td></td>
-                                        <td style={{textAlign: 'center'}}>-</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                                        
+                                        {sellerExpenses.map(exp => (
+                                            <tr key={exp.id}>
+                                                <td>
+                                                    <select 
+                                                        value={exp.expenseType || 'other'}
+                                                        onChange={(e) => updateSellerExpense(exp.id, 'expenseType', e.target.value)}
+                                                        style={{width: '100%', marginBottom: exp.expenseType === 'other' ? '5px' : '0'}}
+                                                    >
+                                                        <option value="poa-no-eid">POA Fee (no Emirates ID) incl. 5% VAT</option>
+                                                        <option value="poa-with-eid">POA Fee (with Emirates ID) incl. 5% VAT</option>
+                                                        <option value="handling-admin">Handling Admin Fee incl. 5% VAT</option>
+                                                        <option value="managers-cheque-fee">Manager's Cheque Fee (No Escrow Service) (10% Security Deposit)</option>
+                                                        <option value="other">Other Cost</option>
+                                                    </select>
+                                                    {exp.expenseType === 'other' && (
+                                                        <input 
+                                                            type="text" 
+                                                            value={exp.description}
+                                                            onChange={(e) => updateSellerExpense(exp.id, 'description', e.target.value)}
+                                                            placeholder="Enter custom expense description"
+                                                            style={{width: '100%'}}
+                                                        />
+                                                    )}
+                                                </td>
+                                                <td>
+                                                    <input 
+                                                        type="text" 
+                                                        className="amount-input"
+                                                        value={exp.amount}
+                                                        onChange={(e) => updateSellerExpense(exp.id, 'amount', e.target.value)}
+                                                        placeholder="0.00"
+                                                    />
+                                                </td>
+                                                <td>
+                                                    <select 
+                                                        value={exp.mode}
+                                                        onChange={(e) => updateSellerExpense(exp.id, 'mode', e.target.value)}
+                                                    >
+                                                        {paymentModes.map(mode => (
+                                                            <option key={mode} value={mode}>{mode}</option>
+                                                        ))}
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <select 
+                                                        value={exp.payee}
+                                                        onChange={(e) => updateSellerExpense(exp.id, 'payee', e.target.value)}
+                                                    >
+                                                        {payeeOptions.map(option => (
+                                                            <option key={option} value={option}>{option}</option>
+                                                        ))}
+                                                    </select>
+                                                </td>
+                                                <td style={{textAlign: 'center'}}>
+                                                    <button 
+                                                        className="btn-remove"
+                                                        onClick={() => removeSellerExpense(exp.id)}
+                                                    >
+                                                        ✕
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        
+                                        <tr style={{background: '#FFFF00'}}>
+                                            <td style={{fontWeight: 'bold'}}>Final Sales Proceeds</td>
+                                            <td style={{textAlign: 'right', fontWeight: 'bold'}}>AED {formatCurrency(calculateSellerProceeds())}</td>
+                                            <td></td>
+                                            <td></td>
+                                            <td style={{textAlign: 'center'}}>-</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            )}
+                            
                             <button className="btn-add" onClick={addSellerExpense}>
                                 + Add Seller Expense
                             </button>
@@ -1886,7 +2129,7 @@
                             <div className="info-box" style={{marginTop: '15px'}}>
                                 <strong>💡 Quick Reference:</strong>
                                 <ul style={{marginLeft: '20px', marginTop: '5px', fontSize: '12px'}}>
-                                    <li><strong>UAE Bank Account:</strong> {sellerHasUAEBankAccount ? 'Expenses ADDED to proceeds (shows "Add:") - seller receives money to pay expenses' : 'Expenses SUBTRACTED from proceeds (shows "Less:") - expenses deducted from final amount'}</li>
+                                    <li><strong>UAE Bank Account:</strong> {sellerHasUAEBankAccount ? 'TWO separate tables - First shows Net to Seller, Second shows expenses with "Gross Net To Seller" = TOTAL of expenses only (not including Net to Seller)' : 'Single table with "Remarks" column. Shows "Less:" and expenses deducted from Final Sales Proceeds'}</li>
                                     <li><strong>Broker commission (yellow highlight):</strong> Auto-calculated based on percentage, but you can edit the amount directly to override</li>
                                     <li>POA Fee, Handling Admin Fee, and Manager's Cheque Fee amounts are pre-filled when you select them</li>
                                     <li>Select "Other Cost" to add custom expenses</li>
