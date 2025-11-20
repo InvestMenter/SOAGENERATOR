@@ -59,7 +59,7 @@
             transform: translate(-50%, -50%) rotate(-45deg);
             font-size: 120px;
             font-weight: bold;
-            color: rgba(201, 169, 97, 0.15);
+            color: rgba(255, 87, 87, 0.15);
             z-index: 1;
             pointer-events: none;
             letter-spacing: 20px;
@@ -548,6 +548,9 @@
             const [customBuyerBrokerFee, setCustomBuyerBrokerFee] = useState('');
             const [customSellerBrokerFee, setCustomSellerBrokerFee] = useState('');
 
+            // Add state for seller UAE bank account
+            const [sellerHasUAEBankAccount, setSellerHasUAEBankAccount] = useState(true);
+
             const [generated, setGenerated] = useState(false);
             const [activeTab, setActiveTab] = useState('buyer');
 
@@ -899,8 +902,27 @@
                 
                 let proceeds = netToSeller;
                 
-                // Always deduct what buyer pays to developer (even if 0)
-                proceeds -= totalBuyerPaidDeveloper;
+                // If seller has UAE bank account, ADD all expenses (they need money to pay them)
+                if (sellerHasUAEBankAccount) {
+                    if (totalBuyerPaidDeveloper > 0) {
+                        proceeds += totalBuyerPaidDeveloper;
+                    }
+                    
+                    proceeds += getSellerBrokerFee();
+                    
+                    sellerExpenses.forEach(exp => {
+                        if (exp.amount && !isNaN(parseFloat(exp.amount))) {
+                            proceeds += parseFloat(exp.amount);
+                        }
+                    });
+                    
+                    return proceeds;
+                }
+                
+                // If no UAE bank account, SUBTRACT all expenses
+                if (totalBuyerPaidDeveloper > 0) {
+                    proceeds -= totalBuyerPaidDeveloper;
+                }
                 
                 proceeds -= getSellerBrokerFee();
                 
@@ -953,6 +975,7 @@
                 setSellerExpenses([]);
                 setCustomBuyerBrokerFee('');
                 setCustomSellerBrokerFee('');
+                setSellerHasUAEBankAccount(true);
                 setGenerated(false);
             };
 
@@ -1184,20 +1207,15 @@
                                     <td>Manager's Cheque</td>
                                     <td></td>
                                 </tr>
+                                
                                 <tr>
-                                    <td><strong>Less:</strong></td>
+                                    <td><strong>{sellerHasUAEBankAccount ? 'Add:' : 'Less:'}</strong></td>
                                     <td></td>
                                     <td></td>
                                     <td></td>
                                 </tr>
-                                {totalBuyerPaidDeveloper === 0 ? (
-                                    <tr>
-                                        <td>Amount paid by Buyer to Developer</td>
-                                        <td style={{textAlign: 'right'}}>0.00</td>
-                                        <td>Cash/Card</td>
-                                        <td>Trustee Office</td>
-                                    </tr>
-                                ) : (
+                                
+                                {totalBuyerPaidDeveloper > 0 && (
                                     <tr>
                                         <td>Amount paid by Buyer to Developer</td>
                                         <td style={{textAlign: 'right'}}>{formatCurrency(totalBuyerPaidDeveloper)}</td>
@@ -1205,12 +1223,14 @@
                                         <td>Developer</td>
                                     </tr>
                                 )}
+                                
                                 <tr>
                                     <td>Broker's Agency Fee incl. 5% VAT ({formData.sellerBrokerPercentage}%)</td>
                                     <td style={{textAlign: 'right'}}>{formatCurrency(getSellerBrokerFee())}</td>
                                     <td>Manager's Cheque</td>
                                     <td>Investmenter Real Estate LLC</td>
                                 </tr>
+                                
                                 {sellerExpenses.map(exp => {
                                     const hasValidAmount = exp.amount && (!isNaN(parseFloat(exp.amount)) || exp.amount === 'TO BE CONFIRMED');
                                     const isNumeric = exp.amount && !isNaN(parseFloat(exp.amount));
@@ -1226,6 +1246,7 @@
                                         </tr>
                                     ) : null;
                                 })}
+                                
                                 <tr className="highlight-row">
                                     <td>Final Sales Proceeds</td>
                                     <td style={{textAlign: 'right'}}>AED {formatCurrency(calculateSellerProceeds())}</td>
@@ -1403,6 +1424,21 @@
                                     onChange={(e) => setFormData({...formData, preparedBy: e.target.value})}
                                     placeholder="Enter preparer name"
                                 />
+                            </div>
+
+                            <div className="form-group">
+                                <label style={{display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer'}}>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={sellerHasUAEBankAccount}
+                                        onChange={(e) => setSellerHasUAEBankAccount(e.target.checked)}
+                                        style={{width: 'auto', cursor: 'pointer'}}
+                                    />
+                                    <span>Seller has UAE Bank Account</span>
+                                </label>
+                                <small style={{display: 'block', marginTop: '5px', color: '#666', fontSize: '12px'}}>
+                                    If checked: Expenses ADDED to proceeds (shows "Add:"). If unchecked: Expenses SUBTRACTED from proceeds (shows "Less:").
+                                </small>
                             </div>
 
                             <div className="section-header">Property Units & Pricing</div>
@@ -1731,22 +1767,27 @@
                                         <td></td>
                                         <td style={{textAlign: 'center'}}>-</td>
                                     </tr>
+                                    
                                     <tr style={{background: '#fff3cd'}}>
-                                        <td style={{fontWeight: 'bold'}}>Less:</td>
+                                        <td style={{fontWeight: 'bold'}}>{sellerHasUAEBankAccount ? 'Add:' : 'Less:'}</td>
                                         <td></td>
                                         <td></td>
                                         <td></td>
                                         <td style={{textAlign: 'center'}}>-</td>
                                     </tr>
-                                <tr style={{background: '#f0f8ff'}}>
-                                    <td style={{fontWeight: '500'}}>Amount paid by Buyer to Developer</td>
-                                    <td style={{textAlign: 'right', fontWeight: '500'}}>
-                                        {getTotalBuyerPaidToDeveloper() > 0 ? formatCurrency(getTotalBuyerPaidToDeveloper()) : '0.00'}
-                                    </td>
-                                    <td>{getTotalBuyerPaidToDeveloper() > 0 ? 'Bank Transfer' : 'Cash/Card'}</td>
-                                    <td>{getTotalBuyerPaidToDeveloper() > 0 ? 'Developer' : 'Trustee Office'}</td>
-                                    <td style={{textAlign: 'center'}}>-</td>
-                                </tr>
+                                    
+                                    {getTotalBuyerPaidToDeveloper() > 0 && (
+                                        <tr style={{background: '#f0f8ff'}}>
+                                            <td style={{fontWeight: '500'}}>Amount paid by Buyer to Developer</td>
+                                            <td style={{textAlign: 'right', fontWeight: '500'}}>
+                                                {formatCurrency(getTotalBuyerPaidToDeveloper())}
+                                            </td>
+                                            <td>Bank Transfer</td>
+                                            <td>Developer</td>
+                                            <td style={{textAlign: 'center'}}>-</td>
+                                        </tr>
+                                    )}
+                                    
                                     <tr style={{background: '#f0f8ff'}}>
                                         <td style={{fontWeight: '500'}}>Broker's Agency Fee incl. 5% VAT ({formData.sellerBrokerPercentage}%)</td>
                                         <td>
@@ -1764,6 +1805,7 @@
                                         <td>Investmenter Real Estate LLC</td>
                                         <td style={{textAlign: 'center'}}>✏️</td>
                                     </tr>
+                                    
                                     {sellerExpenses.map(exp => (
                                         <tr key={exp.id}>
                                             <td>
@@ -1827,6 +1869,7 @@
                                             </td>
                                         </tr>
                                     ))}
+                                    
                                     <tr style={{background: '#FFFF00'}}>
                                         <td style={{fontWeight: 'bold'}}>Final Sales Proceeds</td>
                                         <td style={{textAlign: 'right', fontWeight: 'bold'}}>AED {formatCurrency(calculateSellerProceeds())}</td>
@@ -1843,10 +1886,11 @@
                             <div className="info-box" style={{marginTop: '15px'}}>
                                 <strong>💡 Quick Reference:</strong>
                                 <ul style={{marginLeft: '20px', marginTop: '5px', fontSize: '12px'}}>
+                                    <li><strong>UAE Bank Account:</strong> {sellerHasUAEBankAccount ? 'Expenses ADDED to proceeds (shows "Add:") - seller receives money to pay expenses' : 'Expenses SUBTRACTED from proceeds (shows "Less:") - expenses deducted from final amount'}</li>
                                     <li><strong>Broker commission (yellow highlight):</strong> Auto-calculated based on percentage, but you can edit the amount directly to override</li>
                                     <li>POA Fee, Handling Admin Fee, and Manager's Cheque Fee amounts are pre-filled when you select them</li>
                                     <li>Select "Other Cost" to add custom expenses</li>
-                                    <li><strong>Amount paid by Buyer to Developer:</strong> Shows exactly what you enter in the "Amount Paid by Buyer to Developer" field. If empty, shows 0.00</li>
+                                    <li><strong>Amount paid by Buyer to Developer:</strong> Only shows in table if amount is greater than 0</li>
                                 </ul>
                             </div>
 
