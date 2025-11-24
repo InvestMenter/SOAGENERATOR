@@ -209,6 +209,29 @@
             line-height: 1.5;
         }
 
+        .escrow-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 8px;
+            border: 1px solid #999;
+        }
+
+        .escrow-table th {
+            background: #f0f0f0;
+            padding: 5px;
+            text-align: center;
+            font-weight: 600;
+            border: 1px solid #999;
+            font-size: 8px;
+        }
+
+        .escrow-table td {
+            padding: 4px 6px;
+            border: 1px solid #999;
+            font-size: 8px;
+        }
+
         .btn {
             padding: 12px 24px;
             border: none;
@@ -439,6 +462,13 @@
                 opacity: 1 !important;
                 font-size: 100px !important;
             }
+            .escrow-table {
+                font-size: 7px !important;
+            }
+            .escrow-table th, .escrow-table td {
+                font-size: 7px !important;
+                padding: 3px 4px !important;
+            }
         }
 
         .tabs {
@@ -641,6 +671,38 @@
 
             const getDLDTrusteeFee = () => {
                 return propertyType === 'offplan' ? 5250 : 4200;
+            };
+
+            // ESCROW Fee calculations for BUYER (based on Total amount to complete the transfer)
+            const getBuyerEscrowFeeWithConversion = () => {
+                const totalAmount = calculateBuyerTotal();
+                return (totalAmount * 0.0025) + 6300; // 0.25% + AED 6,300
+            };
+
+            const getBuyerEscrowFeeWithoutConversion = () => {
+                const totalAmount = calculateBuyerTotal();
+                return (totalAmount * 0.01) + 6300; // 1% + AED 6,300
+            };
+
+            // ESCROW Fee calculations for SELLER
+            const getSellerEscrowBase = () => {
+                if (sellerHasUAEBankAccount) {
+                    // Total Amount Sales Proceeds + Total Expenses (Gross Net To Seller)
+                    return getNetToSeller() + calculateSellerProceeds();
+                } else {
+                    // Final Sales Proceeds
+                    return calculateSellerProceeds();
+                }
+            };
+
+            const getSellerEscrowFeeWithConversion = () => {
+                const baseAmount = getSellerEscrowBase();
+                return (baseAmount * 0.0025) + 6300; // 0.25% + AED 6,300
+            };
+
+            const getSellerEscrowFeeWithoutConversion = () => {
+                const baseAmount = getSellerEscrowBase();
+                return (baseAmount * 0.01) + 6300; // 1% + AED 6,300
             };
 
             const addUnit = () => {
@@ -1128,11 +1190,38 @@
                             In order to prepare Managers Cheques you will need to visit to your bank's branch.
                             <div style={{marginTop: '10px'}}>
                                 <strong>Important Disclaimer:</strong><br/>
-                                1. Outstanding Balance to Developer as of {formData.documentDate} – AED {formatCurrency(getTotalOutstandingBalance())}<br/>
-                                2. Buyer will pay to Developer – AED {formatCurrency(getTotalBuyerPaidToDeveloper() || getTotalOutstandingBalance())}<br/>
-                                3. Please note that the amount paid to the developer has not yet been deducted from the Net to Seller amount. It will be deducted when transferring the remaining balance to the seller's account<br/>
-                                4. <strong>THIS IS A DRAFT STATEMENT. All amounts shown are ESTIMATES ONLY and are NOT FINAL. Final amounts may vary at the time of transfer and are subject to change. These figures are for planning purposes only and are not guaranteed by InvestMenter Real Estate LLC.</strong>
-                                5. <strong>ESCROW Fee is not included in the breakdown.</strong>
+                                1. Buyer will pay to Developer – AED {formatCurrency(getTotalBuyerPaidToDeveloper() || getTotalOutstandingBalance())}<br/>
+                                2. Please note that the amount paid to the developer has not yet been deducted from the Net to Seller amount. It will be deducted when transferring the remaining balance to the seller's account<br/>
+                                3. <strong>THIS IS A DRAFT STATEMENT. All amounts shown are ESTIMATES ONLY and are NOT FINAL. Final amounts may vary at the time of transfer and are subject to change. These figures are for planning purposes only and are not guaranteed by InvestMenter Real Estate LLC.</strong><br/>
+                                4. <strong>ESCROW Fee is not included in the breakdown above. See estimated ESCROW fees below:</strong>
+                            </div>
+                            
+                            <div style={{marginTop: '10px'}}>
+                                <strong>Estimated ESCROW Fee Calculation (for reference only):</strong>
+                                <table className="escrow-table">
+                                    <thead>
+                                        <tr>
+                                            <th style={{width: '50%'}}>Scenario</th>
+                                            <th style={{width: '30%'}}>Calculation</th>
+                                            <th style={{width: '20%'}}>Estimated Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><strong>With currency conversion</strong><br/>(EUR/USD/GBP ➝ AED)</td>
+                                            <td>0.25% of AED {formatCurrency(calculateBuyerTotal())} + AED 6,300</td>
+                                            <td style={{textAlign: 'right', fontWeight: 'bold'}}>AED {formatCurrency(getBuyerEscrowFeeWithConversion())}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Without currency conversion</strong><br/>(AED ➝ AED)</td>
+                                            <td>1% of AED {formatCurrency(calculateBuyerTotal())} + AED 6,300</td>
+                                            <td style={{textAlign: 'right', fontWeight: 'bold'}}>AED {formatCurrency(getBuyerEscrowFeeWithoutConversion())}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <div style={{fontSize: '7px', fontStyle: 'italic', marginTop: '3px'}}>
+                                    * ESCROW fees shown above are ESTIMATES ONLY and may vary. Final ESCROW fees will be confirmed by the escrow provider.
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1263,7 +1352,7 @@
                                         })}
                                         
                                         <tr className="highlight-row">
-                                            <td><strong>Gross Net To Seller</strong></td>
+                                            <td><strong>Total Expenses</strong></td>
                                             <td style={{textAlign: 'right'}}><strong>{formatCurrency(calculateSellerProceeds())}</strong></td>
                                             <td></td>
                                             <td></td>
@@ -1352,12 +1441,40 @@
                             In order to prepare Managers Cheques you will need to visit to your bank's branch.
                             <div style={{marginTop: '10px'}}>
                                 <strong>Important Disclaimer:</strong><br/>
-                                1. Outstanding Balance to Developer as of {formData.documentDate} – AED {formatCurrency(getTotalOutstandingBalance())}<br/>
                                 {totalBuyerPaidDeveloper > 0 && (
-                                    <>2. Amount paid by Buyer to Developer – AED {formatCurrency(totalBuyerPaidDeveloper)}<br/></>
+                                    <>1. Amount paid by Buyer to Developer – AED {formatCurrency(totalBuyerPaidDeveloper)}<br/></>
                                 )}
-                                <strong>THIS IS A DRAFT STATEMENT. All amounts shown are ESTIMATES ONLY and are NOT FINAL. Final amounts may vary at the time of transfer and are subject to change. These figures are for planning purposes only and are not guaranteed by InvestMenter Real Estate LLC.</strong>
-                                <strong>ESCROW Fee is not included in the breakdown.</strong>
+                                <strong>THIS IS A DRAFT STATEMENT. All amounts shown are ESTIMATES ONLY and are NOT FINAL. Final amounts may vary at the time of transfer and are subject to change. These figures are for planning purposes only and are not guaranteed by InvestMenter Real Estate LLC.</strong><br/>
+                                <strong>ESCROW Fee is not included in the breakdown above. See estimated ESCROW fees below:</strong>
+                            </div>
+                            
+                            <div style={{marginTop: '10px'}}>
+                                <strong>Estimated ESCROW Fee Calculation (for reference only):</strong>
+                                <table className="escrow-table">
+                                    <thead>
+                                        <tr>
+                                            <th style={{width: '50%'}}>Scenario</th>
+                                            <th style={{width: '30%'}}>Calculation</th>
+                                            <th style={{width: '20%'}}>Estimated Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><strong>With currency conversion</strong><br/>(EUR/USD/GBP ➝ AED)</td>
+                                            <td>0.25% of AED {formatCurrency(getSellerEscrowBase())} + AED 6,300</td>
+                                            <td style={{textAlign: 'right', fontWeight: 'bold'}}>AED {formatCurrency(getSellerEscrowFeeWithConversion())}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Without currency conversion</strong><br/>(AED ➝ AED)</td>
+                                            <td>1% of AED {formatCurrency(getSellerEscrowBase())} + AED 6,300</td>
+                                            <td style={{textAlign: 'right', fontWeight: 'bold'}}>AED {formatCurrency(getSellerEscrowFeeWithoutConversion())}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <div style={{fontSize: '7px', fontStyle: 'italic', marginTop: '3px'}}>
+                                    * ESCROW fees shown above are ESTIMATES ONLY and may vary. Final ESCROW fees will be confirmed by the escrow provider.<br/>
+                                    * Base amount: {sellerHasUAEBankAccount ? 'Total Amount Sales Proceeds + Total Expenses' : 'Final Sales Proceeds'}
+                                </div>
                             </div>
                         </div>
                     </div>
